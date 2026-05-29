@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.9.96/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: #f8f9fa; color: #202124; padding: 16px; min-height: 100vh; }
+      .container { max-width: 1100px; margin: 0 auto; display: flex; gap: 20px; height: calc(100vh - 32px); }
+      
+      .sidebar { width: 280px; flex-shrink: 0; overflow-y: auto; }
+      .sidebar h2 { font-size: 18px; font-weight: 500; color: #1a73e8; margin-bottom: 12px; position: sticky; top: 0; background: #f8f9fa; padding-bottom: 8px; }
+      .instr-list { display: flex; flex-direction: column; gap: 6px; }
+      .instr-item {
+        padding: 14px 16px; background: white; border-radius: 10px; cursor: pointer;
+        border: 2px solid transparent; transition: all 0.15s; font-size: 14px; font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      }
+      .instr-item:hover { border-color: #1a73e8; background: #f8f9ff; }
+      .instr-item.active { border-color: #1a73e8; background: #e8f0fe; color: #1a73e8; }
+      .instr-item .ver { font-size: 11px; color: #80868b; font-weight: 400; }
+      
+      .content { flex: 1; background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: relative; display: flex; flex-direction: column; }
+      .content .print-btn {
+        padding: 8px 16px; background: #1a73e8; color: white; border: none;
+        border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit;
+        position: absolute; top: 10px; right: 10px; z-index: 5;
+      }
+      .content iframe { flex: 1; border: none; }
+      .empty { color: #80868b; text-align: center; padding: 60px; }
+      
+      .back-btn {
+        display: none; padding: 10px 16px; background: #1a73e8; color: white; border: none;
+        border-radius: 8px; font-size: 14px; cursor: pointer; margin-bottom: 10px; font-family: inherit;
+      }
+      
+      @media print {
+        .sidebar { display: none; }
+        .back-btn { display: none; }
+        .content .print-btn { display: none; }
+        .content { box-shadow: none; border-radius: 0; }
+        body { background: white; padding: 0; }
+      }
+      
+      @media (max-width: 768px) {
+        .container { flex-direction: column; height: auto; }
+        .sidebar { width: 100%; }
+        .sidebar.mobile-hidden { display: none; }
+        .content { height: calc(100vh - 80px); position: fixed; top: 60px; left: 0; right: 0; bottom: 0; border-radius: 0; z-index: 10; }
+        .content.mobile-hidden { display: none; }
+        .back-btn { display: block; }
+        .back-btn.mobile-hidden { display: none; }
+        .content .print-btn { top: 8px; right: 8px; font-size: 12px; padding: 6px 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="back-btn mobile-hidden" id="backBtn" onclick="goBack()">← Назад к списку</div>
+    
+    <div class="container">
+      <div class="sidebar" id="sidebar">
+        <h2>📋 Инструкции</h2>
+        <div class="instr-list" id="instrList"><div class="empty">Загрузка...</div></div>
+      </div>
+      <div class="content mobile-hidden" id="instrContent">
+        <div class="empty">Выберите инструкцию</div>
+      </div>
+    </div>
+    
+    <script>
+      let instructions = [];
+      let isMobile = window.innerWidth <= 768;
+      
+      google.script.run.withSuccessHandler(function(d) {
+        instructions = d;
+        renderList();
+      }).getInstructions();
+      
+      function renderList() {
+        var list = document.getElementById('instrList');
+        if (!instructions.length) { list.innerHTML = '<div class="empty">Нет инструкций</div>'; return; }
+        var html = '';
+        instructions.forEach(function(item, i) {
+          html += '<div class="instr-item" id="item'+i+'" onclick="showInstruction('+i+')">' + item.name + ' <span class="ver">v' + item.version + '</span></div>';
+        });
+        list.innerHTML = html;
+      }
+      
+      function showInstruction(idx) {
+        document.querySelectorAll('.instr-item').forEach(function(el) { el.classList.remove('active'); });
+        var itemEl = document.getElementById('item'+idx);
+        if (itemEl) itemEl.classList.add('active');
+        
+        var item = instructions[idx];
+        var content = document.getElementById('instrContent');
+        var sidebar = document.getElementById('sidebar');
+        var backBtn = document.getElementById('backBtn');
+        
+        if (item.content && item.content.indexOf('docs.google.com') !== -1) {
+          content.innerHTML = '<button class="print-btn" onclick="window.print()">🖨 Печать</button><iframe src="' + item.content + '"></iframe>';
+        } else {
+          content.innerHTML = '<div class="empty">Ссылка на документ не указана</div>';
+        }
+        
+        if (isMobile) {
+          sidebar.classList.add('mobile-hidden');
+          content.classList.remove('mobile-hidden');
+          backBtn.classList.remove('mobile-hidden');
+        }
+      }
+      
+      function goBack() {
+        var sidebar = document.getElementById('sidebar');
+        var content = document.getElementById('instrContent');
+        var backBtn = document.getElementById('backBtn');
+        
+        sidebar.classList.remove('mobile-hidden');
+        content.classList.add('mobile-hidden');
+        backBtn.classList.add('mobile-hidden');
+      }
+    </script>
+  </body>
+</html>
