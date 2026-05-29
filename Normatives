@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.9.96/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); color: #202124; padding: 24px; min-height: 100vh; }
+      .container { max-width: 650px; margin: 0 auto; background: white; border-radius: 18px; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 6px; }
+      .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 24px; }
+      
+      .form-group { margin-bottom: 18px; }
+      label { display: block; font-size: 13px; font-weight: 500; color: #5f6368; margin-bottom: 5px; }
+      input, select, textarea {
+        width: 100%; padding: 12px 14px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+        font-size: 15px; font-family: inherit; background: #fafafa; transition: all 0.2s;
+      }
+      input:focus, select:focus, textarea:focus {
+        outline: none; border-color: #1a73e8; background: white;
+        box-shadow: 0 0 0 3px rgba(26,115,232,0.08);
+      }
+      .row { display: flex; gap: 14px; }
+      .row > .form-group { flex: 1; }
+      
+      .result-box {
+        background: #f8f9fa; border-radius: 12px; padding: 16px; margin-top: 16px;
+        display: none; text-align: center;
+      }
+      .result-box.show { display: block; }
+      .result-box .big-num { font-size: 36px; font-weight: 500; }
+      .ok { color: #1e8e3e; }
+      .bad { color: #d93025; }
+      .info { font-size: 13px; color: #5f6368; margin-top: 4px; }
+      
+      .reason-block { display: none; margin-top: 12px; }
+      .reason-block.show { display: block; }
+      textarea { resize: vertical; min-height: 80px; }
+      
+      .normative-field { transition: all 0.2s; }
+      .normative-field.hidden { display: none; }
+      
+      button.submit-btn {
+        width: 100%; padding: 16px; background: #1a73e8; color: white;
+        border: none; border-radius: 14px; font-size: 16px; font-weight: 500;
+        cursor: pointer; font-family: inherit; margin-top: 20px;
+      }
+      button.submit-btn:hover { background: #1765cc; }
+      button.submit-btn:disabled { background: #a8c7fa; cursor: not-allowed; }
+      
+      .result-message { margin-top: 16px; padding: 14px; border-radius: 10px; font-size: 14px; display: none; text-align: center; }
+      .success { background: #e6f4ea; color: #1e8e3e; display: block; }
+      .error { background: #fce8e6; color: #d93025; display: block; }
+      .required { color: #d93025; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>⏱️ Нормативы</h1>
+      <p class="subtitle">Расчёт выполнения норматива</p>
+      
+      <div id="messageBox" class="result-message"></div>
+      
+      <div class="form-group">
+        <label>👤 Ответственный <span class="required">*</span></label>
+        <input type="text" id="responsible" placeholder="ФИО ответственного (обязательно)">
+      </div>
+      
+      <div class="row">
+        <div class="form-group"><label>👤 Сотрудник 1</label><input type="text" id="employee1" placeholder="ФИО"></div>
+        <div class="form-group"><label>👤 Сотрудник 2</label><input type="text" id="employee2" placeholder="ФИО"></div>
+      </div>
+      
+      <div class="row">
+        <div class="form-group"><label>📅 Дата</label><input type="date" id="date"></div>
+        <div class="form-group">
+          <label>⚙️ Операция</label>
+          <select id="operation" onchange="onOperationChange()">
+            <option value="">Выберите операцию...</option>
+            <optgroup label="📥 Приёмка">
+              <option value="Приёмка товара на ПВЗ">Приёмка товара на ПВЗ</option>
+              <option value="Разгрузка возвратов опт">Разгрузка возвратов опт</option>
+              <option value="Разгрузка возвратов от Яндекс и Озон">Разгрузка возвратов от Яндекс и Озон</option>
+              <option value="Разгрузка дисков опт">Разгрузка дисков опт</option>
+            </optgroup>
+            <optgroup label="📤 Размещение">
+              <option value="Размещение возврата дисков от М.П.">Размещение возврата дисков от М.П.</option>
+              <option value="Размещение возврата шин от М.П.">Размещение возврата шин от М.П.</option>
+              <option value="Размещение возвратов опт">Размещение возвратов опт</option>
+            </optgroup>
+            <optgroup label="🔍 Сканирование">
+              <option value="Сканирование и обработка возврата от маркетплейса">Сканирование и обработка возврата от маркетплейса</option>
+              <option value="Сканирование и обработка возвратов опт">Сканирование и обработка возвратов опт</option>
+            </optgroup>
+            <optgroup label="🔧 Другие виды работ (без норматива)">
+              <option value="Другие виды работ">Другие виды работ</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="form-group">
+          <label>📦 Количество (шт.)</label>
+          <input type="number" id="quantity" min="0" placeholder="0" oninput="calcResult()">
+        </div>
+        <div class="form-group normative-field" id="normativeField">
+          <label>🎯 Норматив (шт./час)</label>
+          <input type="number" id="normative" min="1" placeholder="0" oninput="calcResult()">
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="form-group"><label>🕐 Время начала</label><input type="time" id="startTime" onchange="calcResult()"></div>
+        <div class="form-group"><label>🕐 Время окончания</label><input type="time" id="endTime" onchange="calcResult()"></div>
+      </div>
+      
+      <div class="form-group"><label>💰 Сумма</label><input type="number" id="sum" min="0" placeholder="0"></div>
+      
+      <div class="form-group" id="descBlock" style="display:none;">
+        <label>📝 Описание задачи</label>
+        <textarea id="description" placeholder="Опишите, что было сделано..."></textarea>
+      </div>
+      
+      <div class="result-box" id="resultBox">
+        <div class="big-num" id="resultPercent"></div>
+        <div class="info" id="resultInfo"></div>
+      </div>
+      
+      <div class="reason-block" id="reasonBlock">
+        <label>📝 Причина невыполнения</label>
+        <textarea id="reason" placeholder="Опишите причину..."></textarea>
+      </div>
+      
+      <button class="submit-btn" onclick="submitForm()">📤 Отправить</button>
+    </div>
+    
+    <script>
+      document.getElementById('date').value = new Date().toISOString().split('T')[0];
+      var noNormativeOps = ['Другие виды работ'];
+      
+      function onOperationChange() {
+        var op = document.getElementById('operation').value;
+        var normField = document.getElementById('normativeField');
+        var descBlock = document.getElementById('descBlock');
+        if (noNormativeOps.indexOf(op) !== -1) {
+          normField.classList.add('hidden');
+          document.getElementById('normative').value = '';
+          descBlock.style.display = 'block';
+        } else {
+          normField.classList.remove('hidden');
+          descBlock.style.display = 'none';
+          document.getElementById('description').value = '';
+        }
+        calcResult();
+      }
+      
+      function calcResult() {
+        var op = document.getElementById('operation').value;
+        var start = document.getElementById('startTime').value;
+        var end = document.getElementById('endTime').value;
+        var qty = parseInt(document.getElementById('quantity').value) || 0;
+        var norm = parseInt(document.getElementById('normative').value) || 0;
+        
+        if (!start || !end) {
+          document.getElementById('resultBox').classList.remove('show');
+          document.getElementById('reasonBlock').classList.remove('show');
+          return;
+        }
+        
+        var [sh, sm] = start.split(':').map(Number);
+        var [eh, em] = end.split(':').map(Number);
+        var hours = (eh + em/60) - (sh + sm/60);
+        if (hours <= 0) { document.getElementById('resultBox').classList.remove('show'); return; }
+        
+        var h = Math.floor(hours);
+        var m = Math.round((hours - h) * 60);
+        var earnings = Math.round(hours * 300);
+        
+        var isNoNorm = noNormativeOps.indexOf(op) !== -1;
+        
+        if (isNoNorm) {
+          document.getElementById('resultBox').classList.add('show');
+          document.getElementById('resultPercent').textContent = '';
+          document.getElementById('resultPercent').className = 'big-num';
+          document.getElementById('resultInfo').textContent = 'Отработано: ' + h + ' ч ' + m + ' мин | Заработок: ~' + earnings.toLocaleString() + ' ₽';
+          document.getElementById('reasonBlock').classList.remove('show');
+        } else if (qty && norm) {
+          var perHour = Math.round(qty / hours);
+          var percent = Math.round((perHour / norm) * 100);
+          
+          document.getElementById('resultBox').classList.add('show');
+          document.getElementById('resultPercent').textContent = percent + '%';
+          document.getElementById('resultPercent').className = 'big-num ' + (percent >= 90 ? 'ok' : 'bad');
+          document.getElementById('resultInfo').textContent = 'Отработано: ' + h + ' ч ' + m + ' мин | Выработка: ' + perHour + ' шт./час | Норматив: ' + norm + ' | Заработок: ~' + earnings.toLocaleString() + ' ₽';
+          
+          if (percent >= 90) document.getElementById('reasonBlock').classList.remove('show');
+          else document.getElementById('reasonBlock').classList.add('show');
+        }
+      }
+      
+      function submitForm() {
+        var responsible = document.getElementById('responsible').value.trim();
+        var emp1 = document.getElementById('employee1').value.trim();
+        var emp2 = document.getElementById('employee2').value.trim();
+        var date = document.getElementById('date').value;
+        var operation = document.getElementById('operation').value;
+        var quantity = parseInt(document.getElementById('quantity').value) || 0;
+        var normative = parseInt(document.getElementById('normative').value) || 0;
+        var startTime = document.getElementById('startTime').value;
+        var endTime = document.getElementById('endTime').value;
+        var sum = document.getElementById('sum').value.trim();
+        var description = document.getElementById('description').value.trim();
+        
+        if (!responsible) { showMessage('Укажите ответственного.', 'error'); return; }
+        if (!date) { showMessage('Укажите дату.', 'error'); return; }
+        if (!operation) { showMessage('Выберите операцию.', 'error'); return; }
+        if (!startTime || !endTime) { showMessage('Укажите время.', 'error'); return; }
+        
+        var [sh, sm] = startTime.split(':').map(Number);
+        var [eh, em] = endTime.split(':').map(Number);
+        var hours = (eh + em/60) - (sh + sm/60);
+        if (hours <= 0) { showMessage('Время окончания позже начала.', 'error'); return; }
+        
+        var isNoNorm = noNormativeOps.indexOf(operation) !== -1;
+        var perHour, percent, status, reason;
+        
+        if (isNoNorm) {
+          perHour = 0; percent = 0; status = 'Без норматива'; reason = '';
+        } else {
+          if (!quantity || !normative) { showMessage('Укажите количество и норматив.', 'error'); return; }
+          perHour = Math.round(quantity / hours);
+          percent = Math.round((perHour / normative) * 100);
+          status = percent >= 90 ? 'Норматив' : 'Не норматив';
+          reason = document.getElementById('reason').value.trim();
+          if (percent < 90 && !reason) { showMessage('Укажите причину.', 'error'); return; }
+        }
+        
+        var btn = document.querySelector('button.submit-btn');
+        btn.disabled = true; btn.textContent = '⏳ Отправка...';
+        
+        google.script.run
+          .withSuccessHandler(function(r) {
+            btn.disabled = false; btn.textContent = '📤 Отправить';
+            if (r.status === 'success') {
+              showMessage('✓ ' + r.message, 'success');
+              ['quantity','normative','startTime','endTime','reason','sum','description'].forEach(function(id) { document.getElementById(id).value = ''; });
+              document.getElementById('resultBox').classList.remove('show');
+              document.getElementById('reasonBlock').classList.remove('show');
+            }
+          })
+          .withFailureHandler(function(e) { btn.disabled = false; btn.textContent = '📤 Отправить'; showMessage('Ошибка: ' + e.message, 'error'); })
+          .submitNormative({
+            responsible: responsible, employee1: emp1, employee2: emp2, date: date, operation: operation,
+            quantity: quantity, normative: normative, startTime: startTime, endTime: endTime,
+            hoursWorked: hours.toFixed(2), perHour: perHour, percent: percent, status: status,
+            reason: reason || '', sum: sum, description: description
+          });
+      }
+      
+      function showMessage(t, type) {
+        var b = document.getElementById('messageBox');
+        b.textContent = t; b.className = 'result-message ' + type;
+        if (type === 'success') setTimeout(function() { b.className = 'result-message'; }, 4000);
+      }
+    </script>
+  </body>
+</html>
