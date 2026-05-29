@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: #f8f9fa; color: #202124; padding: 24px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+      .container { width: 100%; max-width: 700px; background: white; border-radius: 18px; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 4px; }
+      .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 20px; }
+      
+      .warning { background: #fef7e0; border: 1px solid #feefc3; border-radius: 10px; padding: 14px; margin-bottom: 20px; font-size: 13px; color: #b06000; }
+      
+      textarea { width: 100%; height: 280px; padding: 14px; border: 1.5px solid #e0e0e0; border-radius: 10px; font-size: 13px; font-family: monospace; resize: vertical; margin-bottom: 12px; }
+      textarea:focus { outline: none; border-color: #1a73e8; }
+      
+      .btn-row { display: flex; gap: 10px; margin-bottom: 12px; }
+      .btn-row button { flex: 1; padding: 16px; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; }
+      .btn-primary { background: #1a73e8; color: white; }
+      .btn-primary:hover { background: #1765cc; }
+      .btn-danger { background: #fce8e6; color: #d93025; border: 2px solid #f5c6cb; }
+      .btn-danger:hover { background: #f5c6cb; }
+      .btn-primary:disabled, .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+      
+      .result-message { margin-top: 16px; padding: 14px; border-radius: 10px; font-size: 14px; text-align: center; display: none; }
+      .success { background: #e6f4ea; color: #1e8e3e; display: block; }
+      .error { background: #fce8e6; color: #d93025; display: block; }
+      .info { background: #e8f0fe; color: #1a73e8; display: block; }
+      
+      .stats { display: flex; gap: 10px; margin-bottom: 16px; }
+      .stat-chip { flex: 1; background: #f8f9fa; border-radius: 10px; padding: 12px; text-align: center; }
+      .stat-chip .sv { font-size: 20px; font-weight: 600; color: #1a73e8; }
+      .stat-chip .sl { font-size: 11px; color: #80868b; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📍 Загрузка адресов</h1>
+      <p class="subtitle">Очистка и загрузка листа «Адреса»</p>
+      
+      <div class="warning">
+        ⚠️ <strong>Внимание!</strong> При загрузке все текущие адреса будут удалены и заменены новыми.
+      </div>
+      
+      <div class="stats" id="stats"></div>
+      
+      <div class="btn-row">
+        <button class="btn-danger" onclick="clearOnly()">🗑 Только очистить</button>
+        <button class="btn-primary" onclick="loadData()">📥 Очистить и загрузить</button>
+      </div>
+      
+      <textarea id="rawData" placeholder="Код	Наименование	Неважно	Год	Адрес	Количество
+41009690	Шина Cordiant...	xxx	2024	A11-46-1-2-3-4	8
+..."></textarea>
+      
+      <div id="messageBox" class="result-message"></div>
+    </div>
+    
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        google.script.run.withSuccessHandler(function(data) {
+          if (data && data.rows !== undefined) {
+            document.getElementById('stats').innerHTML = 
+              '<div class="stat-chip"><div class="sv">' + data.rows + '</div><div class="sl">Строк в листе</div></div>';
+          }
+        }).getAddressStats();
+      });
+      
+      function clearOnly() {
+        if (!confirm('Точно очистить все адреса?')) return;
+        var btn = document.querySelector('.btn-danger');
+        btn.disabled = true; btn.textContent = '⏳...';
+        
+        google.script.run
+          .withSuccessHandler(function(r) {
+            btn.disabled = false; btn.textContent = '🗑 Только очистить';
+            showMessage(r.message, r.status === 'success' ? 'success' : 'error');
+            updateStats();
+          })
+          .withFailureHandler(function(e) {
+            btn.disabled = false; btn.textContent = '🗑 Только очистить';
+            showMessage('Ошибка: ' + e.message, 'error');
+          })
+          .clearAndLoadAddresses('');
+      }
+      
+      function loadData() {
+        var raw = document.getElementById('rawData').value.trim();
+        if (!raw) { showMessage('Вставьте данные для загрузки', 'error'); return; }
+        if (!confirm('Все текущие адреса будут удалены. Продолжить?')) return;
+        
+        var btn = document.querySelector('.btn-primary');
+        btn.disabled = true; btn.textContent = '⏳ Загрузка...';
+        
+        google.script.run
+          .withSuccessHandler(function(r) {
+            btn.disabled = false; btn.textContent = '📥 Очистить и загрузить';
+            showMessage(r.message, r.status === 'success' ? 'success' : 'error');
+            if (r.status === 'success') document.getElementById('rawData').value = '';
+            updateStats();
+          })
+          .withFailureHandler(function(e) {
+            btn.disabled = false; btn.textContent = '📥 Очистить и загрузить';
+            showMessage('Ошибка: ' + e.message, 'error');
+          })
+          .clearAndLoadAddresses(raw);
+      }
+      
+      function updateStats() {
+        google.script.run.withSuccessHandler(function(data) {
+          if (data && data.rows !== undefined) {
+            document.getElementById('stats').innerHTML = 
+              '<div class="stat-chip"><div class="sv">' + data.rows + '</div><div class="sl">Строк в листе</div></div>';
+          }
+        }).getAddressStats();
+      }
+      
+      function showMessage(t, type) {
+        var b = document.getElementById('messageBox');
+        b.textContent = t; b.className = 'result-message ' + type;
+        setTimeout(function() { b.className = 'result-message'; }, 5000);
+      }
+    </script>
+  </body>
+</html>
