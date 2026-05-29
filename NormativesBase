@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.9.96/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: #f8f9fa; color: #202124; padding: 24px; min-height: 100vh; }
+      .container { max-width: 950px; margin: 0 auto; }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 6px; }
+      .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 20px; }
+      
+      .calendar-block {
+        background: white; border-radius: 16px; padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 24px;
+      }
+      .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+      .calendar-header button { background: none; border: none; font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 8px; color: #5f6368; }
+      .calendar-header button:hover { background: #f1f3f4; }
+      .calendar-header .month-label { font-size: 15px; font-weight: 500; }
+      .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+      .calendar-grid .day-name { font-size: 11px; color: #80868b; padding: 4px 0; font-weight: 500; }
+      .calendar-grid .day { padding: 8px 2px; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.1s; }
+      .calendar-grid .day:hover { background: #e8f0fe; }
+      .calendar-grid .day.today { background: #e8f0fe; font-weight: 600; color: #1a73e8; }
+      .calendar-grid .day.selected { background: #1a73e8; color: white; font-weight: 600; }
+      .calendar-grid .day.empty { cursor: default; }
+      .calendar-grid .day.has-data { position: relative; }
+      .calendar-grid .day.has-data::after { content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: #1a73e8; }
+      .calendar-grid .day.selected.has-data::after { background: white; }
+      
+      .day-panel {
+        background: white; border-radius: 16px; padding: 24px; margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: none;
+      }
+      .day-panel.show { display: block; }
+      .day-panel .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+      .day-panel .panel-header h3 { font-size: 18px; font-weight: 500; }
+      .day-panel .print-btn { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; }
+      .day-panel .print-btn:hover { background: #1765cc; }
+      
+      .day-summary { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+      .ds-chip { background: #f8f9fa; border-radius: 12px; padding: 14px 18px; text-align: center; min-width: 80px; flex: 1; }
+      .ds-chip .dv { font-size: 22px; font-weight: 600; }
+      .ds-chip .dl { font-size: 10px; color: #80868b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+      .ds-chip.good .dv { color: #1e8e3e; }
+      .ds-chip.bad .dv { color: #d93025; }
+      .ds-chip.info .dv { color: #1a73e8; }
+      
+      .day-table-wrap { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; min-width: 600px; }
+      th { background: #f1f3f4; padding: 10px 12px; font-size: 11px; color: #5f6368; text-align: left; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e0e0e0; }
+      td { padding: 12px 12px; font-size: 13px; border-bottom: 1px solid #f1f3f4; }
+      tr:hover td { background: #fafafa; }
+      .ok-row td { color: #1e8e3e; }
+      .bad-row td { color: #d93025; }
+      .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+      .badge-ok { background: #e6f4ea; color: #1e8e3e; }
+      .badge-bad { background: #fce8e6; color: #d93025; }
+      .badge-no { background: #f1f3f4; color: #80868b; }
+      
+      .empty { text-align: center; padding: 40px; color: #80868b; }
+      
+      @media print {
+        body { background: white; padding: 10px; }
+        .calendar-block { display: none; }
+        .day-panel { box-shadow: none; padding: 0; }
+        .print-btn { display: none; }
+        .day-summary { gap: 8px; }
+        .ds-chip { padding: 10px 12px; }
+        .ds-chip .dv { font-size: 18px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>⏱️ База нормативов</h1>
+      <p class="subtitle">Календарь • Нажмите на дату для просмотра операций</p>
+      
+      <div class="calendar-block">
+        <div class="calendar-header">
+          <button onclick="changeMonth(-1)">◀</button>
+          <span class="month-label" id="monthLabel"></span>
+          <button onclick="changeMonth(1)">▶</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+      
+      <div class="day-panel" id="dayPanel"></div>
+    </div>
+    
+    <script>
+      var allData = [];
+      var currentMonth = new Date().getMonth();
+      var currentYear = new Date().getFullYear();
+      var today = new Date().toLocaleDateString('ru-RU');
+      var selectedDate = '';
+      
+      google.script.run.withSuccessHandler(function(d) {
+        allData = d;
+        renderCalendar();
+      }).getNormativesForWeb();
+      
+      function changeMonth(d) {
+        currentMonth += d;
+        if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+        renderCalendar();
+      }
+      
+      function renderCalendar() {
+        document.getElementById('monthLabel').textContent = 
+          new Date(currentYear, currentMonth).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        
+        var grid = document.getElementById('calendarGrid');
+        var html = '';
+        ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(d) { html += '<div class="day-name">'+d+'</div>'; });
+        
+        var firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        if (firstDay === 0) firstDay = 7;
+        var daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        
+        for (var i = 1; i < firstDay; i++) html += '<div class="day empty"></div>';
+        
+        for (var d = 1; d <= daysInMonth; d++) {
+          var ds = new Date(currentYear, currentMonth, d).toLocaleDateString('ru-RU');
+          var cls = 'day';
+          if (ds === today) cls += ' today';
+          if (ds === selectedDate) cls += ' selected';
+          if (hasData(ds)) cls += ' has-data';
+          html += '<div class="'+cls+'" onclick="selectDate(\''+ds+'\')">'+d+'</div>';
+        }
+        grid.innerHTML = html;
+      }
+      
+      function hasData(ds) {
+        for (var i = 0; i < allData.length; i++) {
+          if ((allData[i][3]||'').toString() === ds) return true;
+        }
+        return false;
+      }
+      
+      function formatHours(hours) {
+        var h = Math.floor(hours);
+        var m = Math.round((hours - h) * 60);
+        if (m === 60) { h++; m = 0; }
+        return h + ' ч ' + m + ' мин';
+      }
+      
+      function selectDate(ds) {
+        selectedDate = ds;
+        renderCalendar();
+        
+        var dayOps = allData.filter(function(r) { return (r[3]||'').toString() === ds; });
+        var panel = document.getElementById('dayPanel');
+        
+        if (dayOps.length === 0) { panel.classList.remove('show'); return; }
+        
+        var totalQty = 0, totalSum = 0, totalHours = 0, totalPct = 0, normCount = 0;
+        dayOps.forEach(function(r) {
+          totalQty += parseFloat(r[5])||0;
+          totalSum += parseFloat(r[14])||0;
+          totalHours += parseFloat(r[9])||0;
+          var p = parseFloat(r[11])||0;
+          if (p > 0) { totalPct += p; normCount++; }
+        });
+        var avgPct = normCount > 0 ? Math.round(totalPct / normCount) : 0;
+        
+        var html = '<div class="panel-header">';
+        html += '<h3>📅 ' + ds + '</h3>';
+        html += '<button class="print-btn" onclick="window.print()">🖨 Печать</button>';
+        html += '</div>';
+        
+        html += '<div class="day-summary">';
+        html += '<div class="ds-chip info"><div class="dv">' + dayOps.length + '</div><div class="dl">Операций</div></div>';
+        html += '<div class="ds-chip ' + (avgPct >= 90 ? 'good' : 'bad') + '"><div class="dv">' + (normCount > 0 ? avgPct + '%' : '—') + '</div><div class="dl">Средний %</div></div>';
+        html += '<div class="ds-chip info"><div class="dv">' + totalQty + '</div><div class="dl">Единиц</div></div>';
+        html += '<div class="ds-chip info"><div class="dv">' + formatHours(totalHours) + '</div><div class="dl">Отработано</div></div>';
+        html += '<div class="ds-chip info"><div class="dv">' + totalSum.toLocaleString() + ' ₽</div><div class="dl">Сумма</div></div>';
+        html += '</div>';
+        
+        html += '<div class="day-table-wrap"><table><thead><tr><th>Отв.</th><th>Операция</th><th>Кол-во</th><th>Норм</th><th>Часы</th><th>%</th><th>Статус</th></tr></thead><tbody>';
+        dayOps.forEach(function(r) {
+          var st = (r[12]||'').toString();
+          var cls = st.indexOf('Не') !== -1 ? 'bad-row' : 'ok-row';
+          var badge = st.indexOf('Не') !== -1 ? 'badge-bad' : (st === 'Норматив' ? 'badge-ok' : 'badge-no');
+          html += '<tr class="'+cls+'"><td>'+(r[0]||'')+'</td><td>'+(r[4]||'')+'</td><td>'+(r[5]||'')+'</td><td>'+(r[6]||'—')+'</td><td>'+formatHours(parseFloat(r[9])||0)+'</td><td>'+(r[11]||'')+'%</td><td><span class="status-badge '+badge+'">'+st+'</span></td></tr>';
+        });
+        html += '</tbody></table></div>';
+        
+        panel.innerHTML = html;
+        panel.classList.add('show');
+      }
+    </script>
+  </body>
+</html>
