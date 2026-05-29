@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: #f8f9fa; color: #202124; padding: 24px; min-height: 100vh; }
+      .container { max-width: 1000px; margin: 0 auto; }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 6px; }
+      .subtitle { color: #5f6368; font-size: 13px; margin-bottom: 20px; }
+      
+      .search-box { display: flex; gap: 10px; margin-bottom: 16px; }
+      .search-box input { flex: 1; padding: 14px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 16px; font-family: inherit; }
+      .search-box input:focus { outline: none; border-color: #1a73e8; }
+      .search-box button { padding: 14px 24px; background: #1a73e8; color: white; border: none; border-radius: 12px; font-size: 16px; cursor: pointer; font-family: inherit; }
+      
+      .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+      .stat-chip { background: white; border-radius: 8px; padding: 8px 12px; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+      .stat-chip strong { color: #1a73e8; }
+      
+      table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+      th { background: #f1f3f4; padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #5f6368; }
+      td { padding: 12px 14px; font-size: 14px; border-bottom: 1px solid #f1f3f4; }
+      tr:hover td { background: #fafafa; }
+      .empty { text-align: center; padding: 40px; color: #80868b; }
+      
+      @media print {
+        body { background: white; padding: 10px; }
+        h1, .subtitle, .search-box, .stats { display: none; }
+        table { box-shadow: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📋 База размещения шин</h1>
+      <p class="subtitle">Поиск по каталожному номеру</p>
+      
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Введите каталожный номер...">
+        <button onclick="doSearch()">🔍 Искать</button>
+      </div>
+      
+      <div class="stats" id="stats"></div>
+      <div id="tableContainer"><div class="empty">Загрузка...</div></div>
+    </div>
+    
+    <script>
+      let allData = [];
+      
+      google.script.run.withSuccessHandler(function(d) {
+        allData = d;
+        renderTable(allData);
+      }).getAllTirePlacements();
+      
+      function doSearch() {
+        var q = document.getElementById('searchInput').value.trim().toUpperCase();
+        if (!q) { renderTable(allData); return; }
+        
+        var filtered = allData.filter(function(r) {
+          return (r[0] || '').toString().toUpperCase().includes(q);
+        });
+        
+        renderTable(filtered);
+      }
+      
+      function renderTable(data) {
+        var c = document.getElementById('tableContainer');
+        var s = document.getElementById('stats');
+        
+        if (!data || data.length === 0) {
+          c.innerHTML = '<div class="empty">Ничего не найдено</div>';
+          s.innerHTML = '';
+          return;
+        }
+        
+        var totalQty = 0;
+        data.forEach(function(r) { totalQty += parseFloat(r[3]) || 0; });
+        
+        s.innerHTML = '<div class="stat-chip">Найдено: <strong>' + data.length + '</strong> записей</div>' +
+                      '<div class="stat-chip">Всего: <strong>' + totalQty + '</strong> шт.</div>';
+        
+        var h = '<table><thead><tr><th>Код</th><th>Наименование</th><th>Год</th><th>Кол-во</th><th>Адрес</th></tr></thead><tbody>';
+        data.forEach(function(r) {
+          h += '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + (r[2]||'—') + '</td><td>' + r[3] + '</td><td>' + (r[4]||'—') + '</td></tr>';
+        });
+        h += '</tbody></table>';
+        c.innerHTML = h;
+      }
+    </script>
+  </body>
+</html>
