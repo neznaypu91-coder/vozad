@@ -1,0 +1,215 @@
+<script>
+  let fullCatalog = [];
+  // Режимы поиска для каждого поля
+  let searchModes = { fact: 'name', doc: 'name' };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    google.script.run.withSuccessHandler(function(data) {
+      fullCatalog = data.map(function(item) {
+        return [item[0].toString().trim(), item[1].toString().trim()];
+      });
+    }).getTireCatalogData();
+  });
+
+  // Переключение режима поиска
+  function setSearchMode(type, mode, btn) {
+    searchModes[type] = mode;
+    
+    // Подсветка кнопок
+    var parent = document.getElementById('searchMode' + (type === 'fact' ? 'Fact' : 'Doc'));
+    var buttons = parent.querySelectorAll('button');
+    buttons.forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    
+    // Меняем placeholder
+    var input = document.getElementById('search' + (type === 'fact' ? 'Fact' : 'Doc'));
+    if (mode === 'code') {
+      input.placeholder = 'Введите каталожный номер...';
+    } else {
+      input.placeholder = 'Введите название шины...';
+    }
+    
+    // Очищаем и фокусируем
+    input.value = '';
+    input.focus();
+    document.getElementById('list' + (type === 'fact' ? 'Fact' : 'Doc')).style.display = 'none';
+  }
+
+  // ======== УМНЫЙ ПОИСК ========
+  
+  document.addEventListener('input', function(e) {
+    if (e.target.id === 'searchFact') {
+      doSearch(e.target.value, 'fact');
+    } else if (e.target.id === 'searchDoc') {
+      doSearch(e.target.value, 'doc');
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if (e.target.id !== 'searchFact' && e.target.id !== 'searchDoc') {
+      document.getElementById('listFact').style.display = 'none';
+      document.getElementById('listDoc').style.display = 'none';
+    }
+  });
+
+  function doSearch(query, type) {
+    var listId = 'list' + (type === 'fact' ? 'Fact' : 'Doc');
+    var list = document.getElementById(listId);
+    var q = query.trim().toUpperCase();
+    var mode = searchModes[type];
+    
+    list.innerHTML = '';
+    
+    if (q.length < 1) {
+      list.style.display = 'none';
+      return;
+    }
+    
+    var matches;
+    var words = q.split(/\s+/).filter(function(w) { return w.length > 0; });
+    
+    if (mode === 'code') {
+      // Поиск ТОЛЬКО по каталожному номеру
+      matches = fullCatalog.filter(function(item) {
+        return item[0].toUpperCase().includes(q);
+      });
+      // Сортируем: точное совпадение выше
+      matches.sort(function(a, b) {
+        var aExact = a[0].toUpperCase() === q ? 0 : 1;
+        var bExact = b[0].toUpperCase() === q ? 0 : 1;
+        if (aExact !== bExact) return aExact - bExact;
+        return a[0].toUpperCase().indexOf(q) - b[0].toUpperCase().indexOf(q);
+      });
+    } else {
+      // Поиск по названию ИЛИ каталожному номеру
+      matches = fullCatalog.filter(function(item) {
+        var code = item[0].toUpperCase();
+        var name = item[1].toUpperCase();
+        
+        // Прямое вхождение
+        if (code.includes(q) || name.includes(q)) return true;
+        
+        // Все слова из запроса встречаются
+        return words.every(function(word) {
+          return code.includes(word) || name.includes(word);
+        });
+      });
+      
+      // Сортируем: начало названия совпадает → выше
+      matches.sort(function(a, b) {
+        var aStarts = a[1].toUpperCase().startsWith(q) ? 0 : 1;
+        var bStarts = b[1].toUpperCase().startsWith(q) ? 0 : 1;
+        if (aStarts !== bStarts) return aStarts - bStarts;
+        return a[1].localeCompare(b[1]);
+      });
+    }
+    
+    if (matches.length === 0) {
+      list.style.display = 'none';
+      return;
+    }
+    
+    // Показываем до 20 результатов
+    matches.slice(0, 20).forEach(function(item) {
+      var div = document.createElement('div');
+      div.className = 'autocomplete-item';
+      
+      // Подсветка совпадений в названии
+      var highlightedName = highlightMatch(item[1], q, words);
+      
+      div.innerHTML = '<div class="match-name">' + highlightedName + '</div>' +
+                      '<div class="match-code">Код: ' + item[0] + '</div>';
+      div.addEventListener('mousedown', function(event) {
+        event.preventDefault();
+        selectTire(item, type);
+        list.style.display = 'none';
+      });
+      list.appendChild(div);
+    });
+    
+    list.style.display = 'block';
+  }
+  
+  // Подсветка совпадающих слов
+  function highlightMatch(text, fullQuery, words) {
+    var result = escapeHtml(text);
+    if (!fullQuery) return result;
+    
+    // Пробуем подсветить полный запрос
+    var regex = new RegExp('(' + escapeRegex(fullQuery) + ')', 'gi');
+    result = result.replace(regex, '<span class="highlight">$1</span>');
+    
+    return result;
+  }
+  
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  
+  function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function selectTire(item, type) {
+    if (type === 'fact') {
+      document.getElementById('searchFact').value = item[1] + ' [' + item[0] + ']';
+      document.getElementById('articleFact').value = item[0];
+      document.getElementById('productFact').value = item[1];
+    } else {
+      document.getElementById('searchDoc').value = item[1] + ' [' + item[0] + ']';
+      document.getElementById('articleDoc').value = item[0];
+      document.getElementById('productDoc').value = item[1];
+    }
+  }
+
+  // ======== ОТПРАВКА ========
+
+  function submitForm() {
+    var articleFact = document.getElementById('articleFact').value.trim();
+    var productFact = document.getElementById('productFact').value;
+    var articleDoc = document.getElementById('articleDoc').value.trim();
+    var productDoc = document.getElementById('productDoc').value;
+    var quantity = document.getElementById('quantity').value;
+    var year = document.getElementById('year').value.trim();
+    var reason = document.getElementById('reason').value.trim();
+
+    if (!articleFact) { showMessage('Найдите и выберите шину в поиске.', 'error'); return; }
+    if (!quantity || quantity < 1) { showMessage('Укажите количество.', 'error'); return; }
+
+    var btn = document.querySelector('button.submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Отправка...';
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        btn.disabled = false;
+        btn.innerHTML = '📤 Отправить';
+        if (response.status === 'success') {
+          showMessage('✓ ' + response.message, 'success');
+          // Сброс формы
+          document.getElementById('searchFact').value = '';
+          document.getElementById('articleFact').value = '';
+          document.getElementById('productFact').value = '';
+          document.getElementById('searchDoc').value = '';
+          document.getElementById('articleDoc').value = '';
+          document.getElementById('productDoc').value = '';
+          document.getElementById('quantity').value = '';
+          document.getElementById('year').value = '';
+          document.getElementById('reason').value = '';
+        }
+      })
+      .withFailureHandler(function(error) {
+        btn.disabled = false;
+        btn.innerHTML = '📤 Отправить';
+        showMessage('Ошибка: ' + error.message, 'error');
+      })
+      .submitTireDefect(articleFact, productFact, articleDoc, productDoc, quantity, year, reason);
+  }
+
+  function showMessage(text, type) {
+    var box = document.getElementById('messageBox');
+    box.textContent = text;
+    box.className = 'result-message ' + type;
+    if (type === 'success') setTimeout(function() { box.className = 'result-message'; }, 5000);
+  }
+</script>
