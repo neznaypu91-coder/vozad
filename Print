@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Google Sans', Roboto, Arial, sans-serif;
+        background: #f8f9fa;
+        color: #202124;
+        padding: 30px;
+        min-height: 100vh;
+      }
+      .container { max-width: 900px; margin: 0 auto; }
+      h1 {
+        font-size: 26px;
+        font-weight: 500;
+        color: #1a73e8;
+        margin-bottom: 6px;
+      }
+      .subtitle { color: #5f6368; margin-bottom: 28px; font-size: 15px; }
+      .brand-buttons {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+      }
+      .brand-btn {
+        flex: 1;
+        min-width: 130px;
+        padding: 18px;
+        border: 2px solid #e8eaed;
+        border-radius: 14px;
+        background: white;
+        cursor: pointer;
+        font-size: 17px;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.2s;
+        text-align: center;
+      }
+      .brand-btn:hover {
+        border-color: #1a73e8;
+        background: #f8f9ff;
+      }
+      .brand-btn.active {
+        border-color: #1a73e8;
+        background: #e8f0fe;
+        color: #1a73e8;
+      }
+      .result-block {
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      }
+      .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .result-title {
+        font-size: 18px;
+        font-weight: 500;
+        color: #202124;
+      }
+      .result-count {
+        font-size: 14px;
+        color: #5f6368;
+        background: #f1f3f4;
+        padding: 4px 12px;
+        border-radius: 20px;
+      }
+      .print-btn {
+        padding: 12px 28px;
+        background: #1a73e8;
+        color: white;
+        border: none;
+        border-radius: 24px;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: inherit;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.2s;
+      }
+      .print-btn:hover { background: #1765cc; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        background: #f1f3f4;
+        padding: 13px 14px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #5f6368;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      td {
+        padding: 13px 14px;
+        font-size: 14px;
+        border-bottom: 1px solid #f1f3f4;
+      }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: #fafafa; }
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+      }
+      .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+      .empty-state p { color: #80868b; font-size: 15px; }
+      /* Стили для печати */
+      @media print {
+        body { background: white; padding: 10px; }
+        h1, .subtitle, .brand-buttons, .print-btn, .result-header { display: none; }
+        .result-block { box-shadow: none; border-radius: 0; padding: 0; }
+        table { font-size: 12px; }
+        th, td { padding: 8px 10px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📋 Брак по брендам</h1>
+      <p class="subtitle">Выберите бренд, чтобы увидеть список и распечатать</p>
+      
+      <div class="brand-buttons">
+        <button class="brand-btn" onclick="showBrand('Aero', this)">Aero</button>
+        <button class="brand-btn" onclick="showBrand('TL', this)">TL</button>
+        <button class="brand-btn" onclick="showBrand('K&K', this)">K&K</button>
+      </div>
+      
+      <div id="resultContainer"></div>
+    </div>
+
+    <script>
+      function showBrand(brand, btn) {
+        // Подсветка кнопки
+        document.querySelectorAll('.brand-btn').forEach(function(b) {
+          b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        
+        // Показываем загрузку
+        document.getElementById('resultContainer').innerHTML = 
+          '<div class="result-block"><div class="empty-state"><p>Загрузка...</p></div></div>';
+        
+        google.script.run.withSuccessHandler(function(data) {
+          buildResult(data, brand);
+        }).getDefectsByBrand(brand);
+      }
+      
+      function buildResult(data, brand) {
+  var container = document.getElementById('resultContainer');
+  
+  if (data.length === 0) {
+    container.innerHTML = 
+      '<div class="result-block">' +
+      '<div class="empty-state">' +
+      '<div class="icon">📭</div>' +
+      '<p>Нет записей для бренда <strong>' + brand + '</strong></p>' +
+      '</div></div>';
+    return;
+  }
+  
+  // Считаем общее количество
+  var totalQuantity = 0;
+  data.forEach(function(row) {
+    totalQuantity += Number(row[4]) || 0;
+  });
+  
+  var html = '<div class="result-block">';
+  
+  // Заголовок с кнопкой печати
+  html += '<div class="result-header">';
+  html += '<div><span class="result-title">Бренд: ' + brand + '</span> ';
+  html += '<span class="result-count">' + data.length + ' записей</span></div>';
+  html += '<button class="print-btn" onclick="window.print()">🖨 Печать</button>';
+  html += '</div>';
+  
+  // Таблица
+  html += '<table><thead><tr>';
+  html += '<th>Каталог Факт</th><th>Товар Факт</th><th>Каталог Док</th><th>Товар Док</th><th>Кол-во</th><th>Бренд</th>';
+  html += '</tr></thead><tbody>';
+  
+  data.forEach(function(row) {
+    html += '<tr>';
+    html += '<td>' + (row[0] || '—') + '</td>';
+    html += '<td>' + (row[1] || '—') + '</td>';
+    html += '<td>' + (row[2] || '—') + '</td>';
+    html += '<td>' + (row[3] || '—') + '</td>';
+    html += '<td style="text-align:center;font-weight:500;">' + (row[4] || '0') + '</td>';
+    html += '<td>' + (row[5] || '') + '</td>';
+    html += '</tr>';
+  });
+  
+  // ИТОГО
+  html += '<tr style="background:#fef7e0; font-weight:500;">';
+  html += '<td colspan="4" style="text-align:right; padding:14px 16px;">📦 Общее количество:</td>';
+  html += '<td style="text-align:center; font-size:16px; color:#d93025;">' + totalQuantity + '</td>';
+  html += '<td></td>';
+  html += '</tr>';
+  
+  html += '</tbody></table>';
+  html += '</div>';
+  
+  container.innerHTML = html;
+}
+    </script>
+  </body>
+</html>
