@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: #f8f9fa; color: #202124; padding: 24px; min-height: 100vh; }
+      .container { max-width: 900px; margin: 0 auto; }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 6px; }
+      .subtitle { color: #5f6368; font-size: 13px; margin-bottom: 20px; }
+      
+      .tab-row { display: flex; gap: 0; margin-bottom: 14px; }
+      .tab-row button { flex: 1; padding: 10px; border: 1px solid #dadce0; background: #f8f9fa; color: #5f6368; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+      .tab-row button:first-child { border-radius: 8px 0 0 8px; }
+      .tab-row button:last-child { border-radius: 0 8px 8px 0; }
+      .tab-row button.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+      
+      .section-label { font-size: 12px; font-weight: 500; color: #5f6368; margin-bottom: 6px; margin-top: 16px; }
+      .search-box { display: flex; gap: 10px; margin-bottom: 6px; position: relative; }
+      .search-box input { flex: 1; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; font-family: inherit; }
+      .search-box input:focus { outline: none; border-color: #1a73e8; }
+      .search-box button { padding: 12px 20px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+      
+      .autocomplete-list { background: white; border: 1px solid #dadce0; border-radius: 8px; max-height: 220px; overflow-y: auto; display: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 10px; }
+      .autocomplete-item { padding: 12px 16px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #f1f3f4; }
+      .autocomplete-item:hover { background: #e8f0fe; }
+      .match-name { font-weight: 500; }
+      .match-code { color: #5f6368; font-size: 12px; }
+      
+      textarea { width: 100%; height: 100px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 13px; font-family: monospace; resize: vertical; }
+      
+      .selected-list { margin-bottom: 16px; }
+      .selected-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: white; border-radius: 8px; margin-bottom: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+      .selected-item .info { flex: 1; font-size: 13px; }
+      .selected-item .info .name { font-weight: 500; }
+      .selected-item .info .code { color: #5f6368; font-size: 11px; }
+      .selected-item .remove { padding: 6px 10px; background: #fce8e6; color: #d93025; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; }
+      
+      .btn-row { display: flex; gap: 10px; margin-bottom: 16px; }
+      .btn-row button { flex: 1; padding: 16px; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; }
+      .btn-primary { background: #1a73e8; color: white; }
+      .btn-secondary { background: #f1f3f4; color: #5f6368; }
+      
+      .result { margin-top: 20px; }
+      .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+      .result-header button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; font-family: inherit; }
+      
+      table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+      th { background: #f1f3f4; padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #5f6368; border: 1px solid #ddd; }
+      td { padding: 12px 14px; font-size: 14px; border: 1px solid #ddd; }
+      .empty { text-align: center; padding: 20px; color: #80868b; font-size: 13px; }
+      
+      @media print {
+        body { background: white; padding: 10px; }
+        h1, .subtitle, .tab-row, .search-box, .selected-list, .btn-row, .result-header, .section-label, textarea { display: none; }
+        table { box-shadow: none; border-radius: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📋 Ведомость по кодам</h1>
+      <p class="subtitle">Найдите товары или вставьте коды</p>
+      
+      <div class="tab-row" id="tabSwitch">
+        <button class="active" onclick="setTab('tires', this)">🛞 Шины</button>
+        <button onclick="setTab('discs', this)">🔘 Диски</button>
+      </div>
+      
+      <!-- Умный поиск -->
+      <div class="section-label">🔍 Поиск товара</div>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Введите название или код..." autocomplete="off">
+        <button onclick="addItemFromSearch()">➕ Добавить</button>
+      </div>
+      <div class="autocomplete-list" id="suggestList"></div>
+      
+      <!-- Ручной ввод кодов -->
+      <div class="section-label">📋 Или вставьте коды (через пробел, Enter или Tab)</div>
+      <textarea id="rawCodes" placeholder="41153641 41065718 41189277 ..."></textarea>
+      <button class="btn-primary" style="width:100%;margin-top:6px;padding:12px;font-size:14px;" onclick="addFromTextarea()">➕ Добавить коды из поля</button>
+      
+      <!-- Список выбранного -->
+      <div class="selected-list" id="selectedList" style="margin-top:16px;">
+        <div class="empty">Список пуст. Найдите товары или вставьте коды.</div>
+      </div>
+      
+      <div class="btn-row">
+        <button class="btn-primary" onclick="showAddresses()">📍 Показать адреса</button>
+        <button class="btn-secondary" onclick="clearAll()">🔄 Очистить</button>
+      </div>
+      
+      <div class="result" id="result"></div>
+    </div>
+    
+    <script>
+      let currentTab = 'tires';
+      let fullCatalog = [];
+      let selectedItems = [];
+      
+      function setTab(tab, btn) {
+        currentTab = tab;
+        document.querySelectorAll('#tabSwitch button').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('searchInput').value = '';
+        document.getElementById('suggestList').style.display = 'none';
+        if (tab === 'tires') google.script.run.withSuccessHandler(function(d) { fullCatalog = d.map(function(item) { return [item[0].toString().trim(), item[1].toString().trim()]; }); }).getTireCatalogData();
+        else google.script.run.withSuccessHandler(function(d) { fullCatalog = d.map(function(item) { return [item[0].toString().trim(), item[1].toString().trim()]; }); }).getCatalogData();
+      }
+      
+      google.script.run.withSuccessHandler(function(d) { fullCatalog = d.map(function(item) { return [item[0].toString().trim(), item[1].toString().trim()]; }); }).getTireCatalogData();
+      
+      // Подсказки
+      document.addEventListener('input', function(e) {
+        if (e.target.id !== 'searchInput') return;
+        var q = e.target.value.trim().toUpperCase();
+        var list = document.getElementById('suggestList');
+        list.innerHTML = '';
+        if (q.length < 2) { list.style.display = 'none'; return; }
+        var words = q.split(/\s+/).filter(function(w) { return w.length > 0; });
+        var matches = fullCatalog.filter(function(item) {
+          var all = (item[0] + ' ' + item[1]).toUpperCase();
+          if (all.includes(q)) return true;
+          return words.every(function(w) { return all.includes(w); });
+        });
+        if (!matches.length) { list.style.display = 'none'; return; }
+        matches.slice(0, 15).forEach(function(item) {
+          var div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          div.innerHTML = '<div class="match-name">' + item[1] + '</div><div class="match-code">Код: ' + item[0] + '</div>';
+          div.addEventListener('mousedown', function(ev) { ev.preventDefault(); addItemFromList(item); list.style.display = 'none'; });
+          list.appendChild(div);
+        });
+        list.style.display = 'block';
+      });
+      
+      document.addEventListener('click', function(e) { if (e.target.id !== 'searchInput') document.getElementById('suggestList').style.display = 'none'; });
+      
+      function addItemFromList(item) {
+        if (!selectedItems.find(function(s) { return s.code === item[0]; })) {
+          selectedItems.push({ code: item[0], name: item[1] });
+          renderSelected();
+        }
+        document.getElementById('searchInput').value = '';
+        document.getElementById('suggestList').style.display = 'none';
+      }
+      
+      function addItemFromSearch() {
+        var q = document.getElementById('searchInput').value.trim();
+        if (!q) return;
+        var found = fullCatalog.find(function(item) { return item[0].toUpperCase() === q.toUpperCase(); }) || fullCatalog.find(function(item) { return item[1].toUpperCase().includes(q.toUpperCase()); });
+        if (found) addItemFromList(found);
+      }
+      
+      function addFromTextarea() {
+        var raw = document.getElementById('rawCodes').value.trim();
+        if (!raw) return;
+        var codes = raw.split(/[\n\t ]+/).filter(function(c) { return c.length > 0; });
+        codes.forEach(function(code) {
+          var found = fullCatalog.find(function(item) { return item[0].toUpperCase() === code.toUpperCase(); });
+          if (found && !selectedItems.find(function(s) { return s.code === found[0]; })) {
+            selectedItems.push({ code: found[0], name: found[1] });
+          } else if (!found && !selectedItems.find(function(s) { return s.code === code; })) {
+            selectedItems.push({ code: code, name: 'Не найден в базе' });
+          }
+        });
+        renderSelected();
+        document.getElementById('rawCodes').value = '';
+      }
+      
+      function removeItem(index) { selectedItems.splice(index, 1); renderSelected(); }
+      
+      function renderSelected() {
+        var container = document.getElementById('selectedList');
+        if (selectedItems.length === 0) { container.innerHTML = '<div class="empty">Список пуст. Найдите товары или вставьте коды.</div>'; return; }
+        var html = '';
+        selectedItems.forEach(function(item, i) {
+          html += '<div class="selected-item"><div class="info"><div class="name">' + item.name + '</div><div class="code">' + item.code + '</div></div><button class="remove" onclick="removeItem(' + i + ')">✕</button></div>';
+        });
+        container.innerHTML = html;
+      }
+      
+      function clearAll() { selectedItems = []; renderSelected(); document.getElementById('result').innerHTML = ''; }
+      
+      function showAddresses() {
+        if (selectedItems.length === 0) return;
+        var codes = selectedItems.map(function(item) { return item.code; }).join(' ');
+        var r = document.getElementById('result');
+        r.innerHTML = '<div class="empty">Поиск адресов...</div>';
+        google.script.run
+          .withSuccessHandler(function(d) {
+            if (!d.length) { r.innerHTML = '<div class="empty">Адреса не найдены</div>'; return; }
+            var total = 0; d.forEach(function(item) { total += item.qty; });
+            var h = '<div class="result-header"><span>Найдено: ' + d.length + ' позиций, ' + total + ' шт.</span><button onclick="window.print()">🖨 Печать</button></div>';
+            h += '<table><thead><tr><th>Код</th><th>Наименование</th><th>Год</th><th>Адрес</th><th>Кол-во</th></tr></thead><tbody>';
+            d.forEach(function(item) { h += '<tr><td>'+item.code+'</td><td>'+item.name+'</td><td>'+item.year+'</td><td><strong>'+item.address+'</strong></td><td>'+item.qty+'</td></tr>'; });
+            h += '</tbody></table>'; r.innerHTML = h;
+          })
+          .withFailureHandler(function() { r.innerHTML = '<div class="empty">Ошибка</div>'; })
+          .getAddressesByCodes(codes, currentTab);
+      }
+    </script>
+  </body>
+</html>
