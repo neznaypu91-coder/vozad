@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: #f8f9fa; color: #202124; padding: 24px; min-height: 100vh; }
+      .container { max-width: 900px; margin: 0 auto; }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 6px; }
+      .subtitle { color: #5f6368; font-size: 13px; margin-bottom: 20px; }
+      
+      .tab-row { display: flex; gap: 0; margin-bottom: 14px; }
+      .tab-row button { flex: 1; padding: 10px; border: 1px solid #dadce0; background: #f8f9fa; color: #5f6368; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+      .tab-row button:first-child { border-radius: 8px 0 0 8px; }
+      .tab-row button:last-child { border-radius: 0 8px 8px 0; }
+      .tab-row button.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+      
+      .search-mode { display: flex; gap: 0; margin-bottom: 14px; }
+      .search-mode button { flex: 1; padding: 10px; border: 1px solid #dadce0; background: #f8f9fa; color: #5f6368; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+      .search-mode button:first-child { border-radius: 8px 0 0 8px; }
+      .search-mode button:last-child { border-radius: 0 8px 8px 0; }
+      .search-mode button.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+      
+      .search-box { display: flex; gap: 10px; margin-bottom: 10px; }
+      .search-box input { flex: 1; padding: 14px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 16px; font-family: inherit; }
+      .search-box input:focus { outline: none; border-color: #1a73e8; }
+      .search-box button { padding: 14px 24px; background: #1a73e8; color: white; border: none; border-radius: 12px; font-size: 16px; cursor: pointer; font-family: inherit; font-weight: 500; }
+      .search-box button:hover { background: #1765cc; }
+      
+      .autocomplete-list { background: white; border: 1px solid #dadce0; border-radius: 8px; max-height: 240px; overflow-y: auto; display: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 16px; }
+      .autocomplete-item { padding: 12px 16px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #f1f3f4; line-height: 1.4; }
+      .autocomplete-item:hover { background: #e8f0fe; }
+      .match-name { font-weight: 500; }
+      .match-code { color: #5f6368; font-size: 12px; }
+      
+      .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+      .result-header span { font-size: 14px; color: #5f6368; }
+      .result-header button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; font-family: inherit; }
+      
+      table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+      th { background: #f1f3f4; padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #5f6368; border: 1px solid #ddd; }
+      td { padding: 12px 14px; font-size: 14px; border: 1px solid #ddd; }
+      tr:hover td { background: #fafafa; }
+      td.address-cell { font-weight: 500; font-family: monospace; font-size: 14px; }
+      
+      .empty { text-align: center; padding: 40px; color: #80868b; font-size: 14px; }
+      
+      @media print {
+        body { background: white; padding: 10px; }
+        h1, .subtitle, .tab-row, .search-mode, .search-box, .result-header, .autocomplete-list { display: none; }
+        table { box-shadow: none; border-radius: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔍 Поиск</h1>
+      <p class="subtitle">Ищите по адресу или по названию товара</p>
+      
+      <div class="tab-row" id="tabSwitch">
+        <button class="active" onclick="setTab('tires', this)">🛞 Шины</button>
+        <button onclick="setTab('discs', this)">🔘 Диски</button>
+      </div>
+      
+      <div class="search-mode" id="modeSwitch">
+        <button class="active" onclick="setMode('address', this)">📍 По адресу</button>
+        <button onclick="setMode('tire', this)">🔍 По названию</button>
+      </div>
+      
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Введите адрес..." autocomplete="off" onkeydown="if(event.key==='Enter')doSearch()">
+        <button onclick="doSearch()">🔍 Искать</button>
+      </div>
+      
+      <div class="autocomplete-list" id="suggestList"></div>
+      <div id="result"><div class="empty">Введите запрос для поиска</div></div>
+    </div>
+    
+    <script>
+      var currentTab = 'tires';
+      var currentMode = 'address';
+      var fullCatalog = [];  // Для шин: [код, название], для дисков: [код, название, артикул]
+      
+      // Загружаем каталог шин по умолчанию (2 столбца)
+      google.script.run.withSuccessHandler(function(d) {
+        fullCatalog = d.map(function(item) { 
+          return [item[0].toString().trim(), item[1].toString().trim()]; 
+        });
+      }).getTireCatalogData();
+      
+      function setTab(tab, btn) {
+        currentTab = tab;
+        document.querySelectorAll('#tabSwitch button').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('searchInput').value = '';
+        document.getElementById('suggestList').style.display = 'none';
+        document.getElementById('result').innerHTML = '<div class="empty">Введите запрос для поиска</div>';
+        
+        if (tab === 'discs') {
+          // Диски: 3 столбца (код, наименование, заводской артикул)
+          google.script.run.withSuccessHandler(function(d) {
+            fullCatalog = d.map(function(item) { 
+              return [
+                (item[0] || '').toString().trim(), 
+                (item[1] || '').toString().trim(), 
+                (item[2] || '').toString().trim()
+              ]; 
+            });
+          }).getCatalogData();
+        } else {
+          // Шины: 2 столбца
+          google.script.run.withSuccessHandler(function(d) {
+            fullCatalog = d.map(function(item) { 
+              return [item[0].toString().trim(), item[1].toString().trim()]; 
+            });
+          }).getTireCatalogData();
+        }
+        document.getElementById('searchInput').focus();
+      }
+      
+      function setMode(mode, btn) {
+        currentMode = mode;
+        document.querySelectorAll('#modeSwitch button').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        var input = document.getElementById('searchInput');
+        input.value = '';
+        input.placeholder = mode === 'address' ? 'Введите адрес или его часть...' : 'Введите название или код...';
+        document.getElementById('suggestList').style.display = 'none';
+        document.getElementById('result').innerHTML = '<div class="empty">Введите запрос для поиска</div>';
+        input.focus();
+      }
+      
+      // Автокомплит для режима "По названию"
+      document.addEventListener('input', function(e) {
+        if (e.target.id !== 'searchInput' || currentMode !== 'tire') return;
+        var q = e.target.value.trim().toUpperCase();
+        var list = document.getElementById('suggestList');
+        list.innerHTML = '';
+        if (q.length < 2) { list.style.display = 'none'; return; }
+        
+        var words = q.split(/\s+/).filter(function(w) { return w.length > 0; });
+        var matches;
+        
+        if (currentTab === 'tires') {
+          // Шины: ищем по коду (0) и названию (1)
+          matches = fullCatalog.filter(function(item) {
+            var all = (item[0] + ' ' + item[1]).toUpperCase();
+            if (all.includes(q)) return true;
+            return words.every(function(w) { return all.includes(w); });
+          });
+        } else {
+          // Диски: ищем по коду (0), названию (1) и заводскому артикулу (2)
+          matches = fullCatalog.filter(function(item) {
+            var all = (item[0] + ' ' + item[1] + ' ' + (item[2] || '')).toUpperCase();
+            if (all.includes(q)) return true;
+            return words.every(function(w) { return all.includes(w); });
+          });
+        }
+        
+        if (!matches.length) { list.style.display = 'none'; return; }
+        
+        matches.slice(0, 15).forEach(function(item) {
+          var div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          
+          if (currentTab === 'tires') {
+            div.innerHTML = '<div class="match-name">' + item[1] + '</div><div class="match-code">Код: ' + item[0] + '</div>';
+          } else {
+            var artText = item[2] ? '<br><span class="match-code">Зав. арт: ' + item[2] + ' | Код: ' + item[0] + '</span>' : '<br><span class="match-code">Код: ' + item[0] + '</span>';
+            div.innerHTML = '<div class="match-name">' + item[1] + '</div>' + artText;
+          }
+          
+          div.addEventListener('mousedown', function(ev) { 
+            ev.preventDefault(); 
+            document.getElementById('searchInput').value = item[1]; 
+            list.style.display = 'none'; 
+            doSearch(); 
+          });
+          list.appendChild(div);
+        });
+        list.style.display = 'block';
+      });
+      
+      document.addEventListener('click', function(e) {
+        if (e.target.id !== 'searchInput') document.getElementById('suggestList').style.display = 'none';
+      });
+      
+      function doSearch() {
+        var q = document.getElementById('searchInput').value.trim();
+        var r = document.getElementById('result');
+        document.getElementById('suggestList').style.display = 'none';
+        
+        if (!q) { r.innerHTML = '<div class="empty">Введите запрос</div>'; return; }
+        
+        r.innerHTML = '<div class="empty">Поиск...</div>';
+        
+        var func;
+        if (currentMode === 'address') {
+          func = currentTab === 'tires' ? 'getTiresByAddress' : 'getDiscsByAddress';
+        } else {
+          func = currentTab === 'tires' ? 'getAddressesByTire' : 'getAddressesByDisc';
+        }
+        
+        google.script.run
+          .withSuccessHandler(function(data) {
+            if (!data || !data.length) {
+              r.innerHTML = '<div class="empty">По запросу «' + q + '» ничего не найдено</div>';
+              return;
+            }
+            
+            var totalQty = 0;
+            data.forEach(function(item) { totalQty += item.qty; });
+            
+            var h = '<div class="result-header"><span>Найдено: ' + data.length + ' позиций, ' + totalQty + ' шт.</span><button onclick="window.print()">🖨 Печать</button></div>';
+            h += '<table><thead><tr><th>Код</th><th>Наименование</th><th>Год</th><th>Адрес</th><th>Кол-во</th></tr></thead><tbody>';
+            
+            data.forEach(function(item) {
+              h += '<tr>';
+              h += '<td>' + (item.code || '') + '</td>';
+              h += '<td>' + (item.name || '') + '</td>';
+              h += '<td>' + (item.year || '—') + '</td>';
+              h += '<td class="address-cell">' + (item.address || '') + '</td>';
+              h += '<td style="text-align:center;font-weight:500;">' + item.qty + '</td>';
+              h += '</tr>';
+            });
+            
+            h += '</tbody></table>';
+            r.innerHTML = h;
+          })
+          .withFailureHandler(function(e) {
+            r.innerHTML = '<div class="empty">Ошибка: ' + (e.message || '') + '</div>';
+          })
+          [func](q);
+      }
+    </script>
+  </body>
+</html>
