@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, Arial, sans-serif; background: #f8f9fa; color: #202124; padding: 30px; min-height: 100vh; }
+      .container { max-width: 1000px; margin: 0 auto; }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 6px; }
+      .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 24px; }
+      .filters { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: end; }
+      .filter-group { display: flex; flex-direction: column; gap: 6px; }
+      .filter-group label { font-size: 13px; font-weight: 500; color: #5f6368; }
+      .filter-group select { padding: 10px 14px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white; }
+      .print-btn { padding: 10px 24px; background: #1a73e8; color: white; border: none; border-radius: 24px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; white-space: nowrap; }
+      .print-btn:hover { background: #1765cc; }
+      .result-block { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+      .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+      .result-title { font-size: 16px; font-weight: 500; }
+      table { width: 100%; border-collapse: collapse; }
+      th { background: #f1f3f4; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; }
+      td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #f1f3f4; }
+      .empty { text-align: center; padding: 60px; color: #80868b; }
+      @media print {
+        body { background: white; padding: 10px; }
+        h1, .subtitle, .filters, .print-btn, .result-header { display: none; }
+        .result-block { box-shadow: none; padding: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🛞 Печать брака шин</h1>
+      <p class="subtitle">Фильтр по году или причине брака</p>
+      
+      <div class="filters">
+        <div class="filter-group">
+          <label>Год производства</label>
+          <select id="filterYear" onchange="loadData()">
+            <option value="">Все года</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Причина брака</label>
+          <select id="filterReason" onchange="loadData()">
+            <option value="">Все причины</option>
+          </select>
+        </div>
+        <button class="print-btn" onclick="window.print()">🖨 Печать</button>
+      </div>
+      
+      <div class="result-block">
+        <div id="tableContainer"><p class="empty">Выберите фильтр или нажмите "Все"</p></div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        google.script.run.withSuccessHandler(function(years) {
+          var y = document.getElementById('filterYear');
+          years.forEach(function(year) {
+            var o = document.createElement('option');
+            o.value = year; o.textContent = year; y.appendChild(o);
+          });
+        }).getTireYears();
+        
+        google.script.run.withSuccessHandler(function(reasons) {
+          var r = document.getElementById('filterReason');
+          reasons.forEach(function(reason) {
+            var o = document.createElement('option');
+            o.value = reason; o.textContent = reason; r.appendChild(o);
+          });
+        }).getTireReasons();
+        
+        loadData();
+      });
+      
+      function loadData() {
+        var year = document.getElementById('filterYear').value;
+        var reason = document.getElementById('filterReason').value;
+        var filterType = 'all';
+        var filterValue = '';
+        
+        if (year) { filterType = 'year'; filterValue = year; }
+        else if (reason) { filterType = 'reason'; filterValue = reason; }
+        
+        google.script.run.withSuccessHandler(renderTable).getTireDefectsByFilter(filterType, filterValue);
+      }
+      
+      function renderTable(data) {
+        var c = document.getElementById('tableContainer');
+        if (!data.length) { c.innerHTML = '<p class="empty">Нет записей</p>'; return; }
+        
+        var h = '<div class="result-header"><span class="result-title">Найдено: ' + data.length + ' записей</span></div>';
+        h += '<table><thead><tr><th>Каталог Факт</th><th>Товар Факт</th><th>Каталог Док</th><th>Товар Док</th><th>Кол-во</th><th>Год</th><th>Причина</th></tr></thead><tbody>';
+        data.forEach(function(r) {
+          h += '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+(r[2]||'—')+'</td><td>'+(r[3]||'—')+'</td><td>'+r[4]+'</td><td>'+(r[5]||'—')+'</td><td>'+(r[6]||'—')+'</td></tr>';
+        });
+        h += '</tbody></table>';
+        c.innerHTML = h;
+      }
+    </script>
+  </body>
+</html>
