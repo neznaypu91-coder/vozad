@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.9.96/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Google Sans', Roboto, Arial, sans-serif;
+        background: #f8f9fa; color: #202124;
+        padding: 20px; min-height: 100vh;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .container {
+        width: 100%; max-width: 700px; background: white;
+        border-radius: 16px; padding: 40px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 6px; }
+      .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 28px; }
+      .form-group { margin-bottom: 22px; position: relative; }
+      label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: #5f6368; }
+      input, select {
+        width: 100%; padding: 14px 16px; border: 1px solid #dadce0;
+        border-radius: 8px; font-size: 16px; font-family: inherit;
+        background: #fff; transition: border-color 0.2s;
+      }
+      input:focus, select:focus {
+        outline: none; border-color: #1a73e8;
+        box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
+      }
+      .search-mode { display: flex; gap: 0; margin-bottom: 12px; }
+      .search-mode button {
+        flex: 1; padding: 10px; border: 1px solid #dadce0;
+        background: #f8f9fa; color: #5f6368;
+        font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+      }
+      .search-mode button:first-child { border-radius: 8px 0 0 8px; }
+      .search-mode button:last-child { border-radius: 0 8px 8px 0; }
+      .search-mode button.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+      .autocomplete-list {
+        position: absolute; top: 100%; left: 0; right: 0; background: white;
+        border: 1px solid #dadce0; border-top: none;
+        border-radius: 0 0 8px 8px; max-height: 260px; overflow-y: auto;
+        z-index: 10; display: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      }
+      .autocomplete-item {
+        padding: 12px 16px; cursor: pointer; font-size: 14px;
+        border-bottom: 1px solid #f1f3f4; line-height: 1.5;
+      }
+      .autocomplete-item:hover { background: #e8f0fe; }
+      .match-name { font-weight: 500; }
+      .match-code { color: #5f6368; font-size: 12px; }
+      .auto-filled { background-color: #f1f3f4 !important; color: #3c4043; }
+      .row { display: flex; gap: 20px; }
+      .row > .form-group { flex: 1; }
+      button.submit-btn {
+        background: #1a73e8; color: white; border: none;
+        padding: 16px 40px; border-radius: 28px; font-size: 17px;
+        font-weight: 500; cursor: pointer; float: right;
+        display: flex; align-items: center; gap: 8px;
+      }
+      button.submit-btn:hover { background: #1765cc; }
+      button.submit-btn:disabled { background: #a8c7fa; cursor: not-allowed; }
+      .result-message {
+        margin-top: 20px; padding: 16px; border-radius: 8px;
+        font-size: 14px; display: none; clear: both;
+      }
+      .success { background: #e6f4ea; color: #1e8e3e; display: block; }
+      .error { background: #fce8e6; color: #d93025; display: block; }
+      .hint { font-size: 12px; color: #80868b; margin-top: 4px; }
+      hr { border: none; border-top: 1px solid #e8eaed; margin: 24px 0; }
+      @media (max-width: 600px) {
+        .container { padding: 20px; }
+        .row { flex-direction: column; gap: 0; }
+        button.submit-btn { width: 100%; justify-content: center; float: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📦 Оформление брака</h1>
+      <p class="subtitle">Поиск по названию или каталожному номеру</p>
+      
+      <div id="messageBox" class="result-message"></div>
+
+      <!-- Поиск фактического товара -->
+      <div class="form-group">
+        <label>🔍 Поиск товара (Факт)</label>
+        <div class="search-mode" id="searchModeFact">
+          <button class="active" onclick="setSearchMode('fact','name',this)">По названию</button>
+          <button onclick="setSearchMode('fact','code',this)">По кат. номеру</button>
+        </div>
+        <input type="text" id="searchFact" placeholder="Введите название или каталожный номер..." autocomplete="off">
+        <div id="listFact" class="autocomplete-list"></div>
+      </div>
+      <div class="form-group">
+        <label>Каталожный номер (Факт)</label>
+        <input type="text" id="articleFact" class="auto-filled" readonly placeholder="Выберите из поиска">
+      </div>
+      <div class="form-group">
+        <label>Товар (Факт)</label>
+        <input type="text" id="productFact" class="auto-filled" readonly placeholder="Выберите из поиска">
+      </div>
+
+      <hr>
+
+      <!-- Поиск по документу -->
+      <div class="form-group">
+        <label>🔍 Поиск товара (по документу)</label>
+        <div class="search-mode" id="searchModeDoc">
+          <button class="active" onclick="setSearchMode('doc','name',this)">По названию</button>
+          <button onclick="setSearchMode('doc','code',this)">По кат. номеру</button>
+        </div>
+        <input type="text" id="searchDoc" placeholder="Введите название или каталожный номер..." autocomplete="off">
+        <div id="listDoc" class="autocomplete-list"></div>
+      </div>
+      <div class="form-group">
+        <label>Каталожный номер (по документу)</label>
+        <input type="text" id="articleDoc" class="auto-filled" readonly placeholder="Выберите из поиска">
+      </div>
+      <div class="form-group">
+        <label>Товар (по документу)</label>
+        <input type="text" id="productDoc" class="auto-filled" readonly placeholder="Выберите из поиска">
+      </div>
+
+      <hr>
+
+      <div class="row">
+        <div class="form-group">
+          <label>Количество</label>
+          <input type="number" id="quantity" min="1" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Бренд</label>
+          <select id="brandSelect" onchange="onBrandSelectChange()">
+            <option value="">-- Выберите бренд --</option>
+            <option value="Aero">Aero</option>
+            <option value="TL">TL</option>
+            <option value="K&K">K&K</option>
+            <option value="__CUSTOM__">🖊 Другой (вписать)</option>
+          </select>
+          <input type="text" id="brandCustom" class="auto-filled" placeholder="Впишите бренд" style="margin-top:8px;display:none;">
+        </div>
+      </div>
+
+      <button class="submit-btn" onclick="submitForm()">
+        <span>📤</span> Отправить
+      </button>
+    </div>
+
+    <?!= include('JavaScript'); ?>
+  </body>
+</html>
