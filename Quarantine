@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.9.96/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: #f8f9fa; color: #202124; padding: 20px; min-height: 100vh; }
+      .container { max-width: 900px; margin: 0 auto; }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 4px; }
+      .subtitle { color: #5f6368; font-size: 13px; margin-bottom: 18px; }
+      
+      .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+      .filter-bar select { padding: 8px 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 13px; background: white; }
+      
+      .legend { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; font-size: 11px; }
+      .legend span { display: flex; align-items: center; gap: 5px; }
+      .legend .dot { width: 10px; height: 10px; border-radius: 3px; }
+      .dot-red { background: #fce8e6; border: 1px solid #d93025; }
+      .dot-blue { background: #e8f0fe; border: 1px solid #1a73e8; }
+      .dot-green { background: #e6f4ea; border: 1px solid #1e8e3e; }
+      
+      .cards { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+      .card { background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); text-align: center; min-width: 70px; }
+      .card .n { font-size: 20px; font-weight: 500; color: #1a73e8; }
+      .card .l { font-size: 10px; color: #80868b; }
+      .card.red .n { color: #d93025; }
+      .card.blue .n { color: #1a73e8; }
+      .card.green .n { color: #1e8e3e; }
+      
+      .client-group { background: white; border-radius: 10px; margin-bottom: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
+      .client-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; cursor: pointer; transition: background 0.1s; }
+      .client-header:hover { background: #fafafa; }
+      .client-header .left { display: flex; align-items: center; gap: 10px; }
+      .client-header .client-name { font-size: 14px; font-weight: 500; max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .client-header .right { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+      .client-header .right .qty { font-weight: 500; }
+      .client-header .arrow { transition: transform 0.2s; color: #80868b; font-size: 14px; }
+      .client-group.open .arrow { transform: rotate(180deg); }
+      
+      .status-strip { width: 5px; height: 40px; border-radius: 3px; flex-shrink: 0; }
+      .strip-red { background: #d93025; }
+      .strip-blue { background: #1a73e8; }
+      .strip-green { background: #1e8e3e; }
+      .strip-mixed { background: linear-gradient(to bottom, #d93025 0%, #d93025 33%, #1a73e8 33%, #1a73e8 66%, #1e8e3e 66%, #1e8e3e 100%); }
+      
+      .client-body { display: none; padding: 0 16px 12px; border-top: 1px solid #f1f3f4; }
+      .client-group.open .client-body { display: block; }
+      
+      .detail-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      .detail-table th { background: #f8f9fa; padding: 6px 8px; text-align: left; font-size: 10px; color: #80868b; font-weight: 500; }
+      .detail-table td { padding: 7px 8px; font-size: 11px; border-bottom: 1px solid #f5f5f5; }
+      .detail-table tr:last-child td { border-bottom: none; }
+      
+      .ukd-red { background: #fce8e6; color: #b71c1c; font-weight: 600; padding: 3px 6px; border-radius: 3px; font-size: 10px; }
+      .ukd-blue { background: #e8f0fe; color: #0d47a1; font-weight: 500; padding: 3px 6px; border-radius: 3px; font-size: 10px; }
+      .ukd-green { background: #e6f4ea; color: #1b5e20; font-weight: 500; padding: 3px 6px; border-radius: 3px; font-size: 10px; }
+      
+      .empty { text-align: center; padding: 50px; color: #80868b; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔒 Карантин</h1>
+      <p class="subtitle">Сгруппировано по клиентам • Нажмите для деталей</p>
+      
+      <div class="legend">
+        <span><span class="dot dot-red"></span> Карантин</span>
+        <span><span class="dot dot-blue"></span> Ожидание подписи</span>
+        <span><span class="dot dot-green"></span> Можно развозить</span>
+      </div>
+      
+      <div class="filter-bar">
+        <span style="font-size:12px;">Статус:</span>
+        <select id="filterStatus" onchange="renderAll()">
+          <option value="">Все</option>
+          <option value="red">🔴 Карантин</option>
+          <option value="blue">🔵 Ожидание</option>
+          <option value="green">🟢 Развоз</option>
+        </select>
+        <span style="font-size:12px;">Менеджер:</span>
+        <select id="filterManager" onchange="renderAll()">
+          <option value="">Все</option>
+        </select>
+      </div>
+      
+      <div class="cards" id="cards"></div>
+      <div id="groups"><div class="empty">Загрузка...</div></div>
+    </div>
+    
+    <script>
+      let allData = [];
+      
+      google.script.run
+        .withSuccessHandler(function(d) { allData = d; buildFilters(); renderAll(); })
+        .withFailureHandler(function() { document.getElementById('groups').innerHTML = '<div class="empty">Ошибка</div>'; })
+        .getQuarantineData();
+      
+      function getStatus(row) {
+        var ukd = (row[4] || '').toString();
+        var type = (row[10] || '').toString().trim();
+        if (type === 'На развоз') return { color: 'green', label: 'Развоз' };
+        if (ukd.includes('не отправлено')) return { color: 'red', label: 'Карантин' };
+        return { color: 'blue', label: 'Ожидание' };
+      }
+      
+      function buildFilters() {
+        var managers = {};
+        allData.forEach(function(r) { var m = (r[8]||'').trim(); if (m) managers[m] = true; });
+        var sel = document.getElementById('filterManager');
+        Object.keys(managers).sort().forEach(function(m) { var o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
+      }
+      
+            function renderAll() {
+        var status = document.getElementById('filterStatus').value;
+        var manager = document.getElementById('filterManager').value;
+        
+        var groups = {};
+        allData.forEach(function(r) {
+          var s = getStatus(r);
+          var m = (r[8]||'').trim();
+          if (status && s.color !== status) return;
+          if (manager && m !== manager) return;
+          
+          var client = (r[3] || 'Без клиента').toString().trim();
+          if (!groups[client]) groups[client] = { items: [], totalQty: 0, statuses: {} };
+          groups[client].items.push(r);
+          groups[client].totalQty += parseFloat(r[9]) || 0;
+          groups[client].statuses[s.color] = true;
+        });
+        
+        var clients = Object.keys(groups).sort();
+        
+        var totalQty = 0, cntRed = 0, cntBlue = 0, cntGreen = 0;
+        clients.forEach(function(c) {
+          var g = groups[c];
+          totalQty += g.totalQty;
+          g.items.forEach(function(r) {
+            var s = getStatus(r);
+            if (s.color === 'red') cntRed++;
+            else if (s.color === 'blue') cntBlue++;
+            else cntGreen++;
+          });
+        });
+        
+        document.getElementById('cards').innerHTML = 
+          '<div class="card"><div class="n">' + clients.length + '</div><div class="l">Клиентов</div></div>' +
+          '<div class="card"><div class="n">' + totalQty + '</div><div class="l">Единиц</div></div>' +
+          '<div class="card red"><div class="n">' + cntRed + '</div><div class="l">🔴 Карантин</div></div>' +
+          '<div class="card blue"><div class="n">' + cntBlue + '</div><div class="l">🔵 Ожидание</div></div>' +
+          '<div class="card green"><div class="n">' + cntGreen + '</div><div class="l">🟢 Развоз</div></div>';
+        
+        var c = document.getElementById('groups');
+        if (clients.length === 0) { c.innerHTML = '<div class="empty">Нет записей</div>'; return; }
+        
+        var html = '';
+        clients.forEach(function(client) {
+          var g = groups[client];
+          var statusCount = Object.keys(g.statuses).length;
+          var stripClass = statusCount === 1 ? 'strip-' + Object.keys(g.statuses)[0] : 'strip-mixed';
+          
+          // Количество через / (только единицы товара)
+          var qtyParts = [];
+          g.items.forEach(function(r) { qtyParts.push(r[9] || '0'); });
+          
+          html += '<div class="client-group" onclick="toggleGroup(this)">';
+          html += '<div class="client-header">';
+          html += '<div class="left">';
+          html += '<div class="status-strip ' + stripClass + '"></div>';
+          html += '<span class="client-name">' + client + '</span>';
+          html += '</div>';
+          html += '<div class="right">';
+          html += '<span class="qty">' + qtyParts.join(' / ') + ' шт.</span>';
+          html += '<span class="arrow">▼</span>';
+          html += '</div></div>';
+          
+          html += '<div class="client-body">';
+          html += '<table class="detail-table"><thead><tr>';
+          html += '<th>Дата</th><th>№ ПО</th><th>№ Задачи</th><th>УКД</th><th>Товар</th><th>Проблема</th><th>Менеджер</th><th>Статус</th>';
+          html += '</tr></thead><tbody>';
+          
+          g.items.forEach(function(r) {
+            var s = getStatus(r);
+            var ukdClass = 'ukd-' + s.color;
+            html += '<tr>';
+            html += '<td>' + (r[0]||'') + '</td>';
+            html += '<td>' + (r[1]||'') + '</td>';
+            html += '<td>' + (r[2]||'') + '</td>';
+            html += '<td><span class="' + ukdClass + '">' + (r[4]||'') + '</span></td>';
+            html += '<td>' + (r[5]||'') + '</td>';
+            html += '<td>' + (r[7]||'') + '</td>';
+            html += '<td>' + (r[8]||'') + '</td>';
+            html += '<td>' + s.label + '</td>';
+            html += '</tr>';
+          });
+          
+          html += '</tbody></table></div>';
+          html += '</div>';
+        });
+        
+        c.innerHTML = html;
+      }
+      
+      function toggleGroup(el) { el.classList.toggle('open'); }
+    </script>
+  </body>
+</html>
