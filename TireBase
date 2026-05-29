@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Google Sans', Roboto, Arial, sans-serif;
+        background: #f8f9fa; color: #202124; padding: 30px; min-height: 100vh;
+      }
+      .container { max-width: 1100px; margin: 0 auto; }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 6px; }
+      .subtitle { color: #5f6368; margin-bottom: 20px; font-size: 14px; }
+      .filter-bar {
+        display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;
+      }
+      .filter-bar select, .filter-bar button {
+        padding: 10px 14px; border: 1px solid #dadce0; border-radius: 8px;
+        font-size: 13px; background: white; cursor: pointer; font-family: inherit;
+      }
+      .filter-bar button {
+        background: #1a73e8; color: white; border: none; font-weight: 500;
+      }
+      .filter-bar button:hover { background: #1765cc; }
+      table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+      th { background: #f1f3f4; padding: 12px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #5f6368; }
+      td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid #f1f3f4; }
+      tr:last-child td { border-bottom: none; }
+      .empty { text-align: center; padding: 60px; color: #80868b; }
+      @media print {
+        body { background: white; padding: 0; }
+        h1, .subtitle, .filter-bar { display: none; }
+        table { box-shadow: none; border-radius: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🛞 База брака шин</h1>
+      <p class="subtitle">Все записи о браке шин</p>
+      
+      <div class="filter-bar">
+        <label style="font-size:13px;color:#5f6368;">Год:</label>
+        <select id="filterYear" onchange="filterTable()">
+          <option value="">Все года</option>
+        </select>
+        <label style="font-size:13px;color:#5f6368;">Причина:</label>
+        <select id="filterReason" onchange="filterTable()">
+          <option value="">Все причины</option>
+        </select>
+        <button onclick="window.print()">🖨 Печать</button>
+      </div>
+      
+      <div id="tableContainer"><p class="empty">Загрузка...</p></div>
+    </div>
+
+    <script>
+      let allData = [];
+      
+      google.script.run.withSuccessHandler(function(data) {
+        allData = data;
+        buildFilters();
+        renderTable(data);
+      }).getAllTireDefects();
+      
+      function buildFilters() {
+        var years = {}, reasons = {};
+        allData.forEach(function(r) {
+          var y = (r[5] || '').toString().trim();
+          var rs = (r[6] || '').toString().trim();
+          if (y) years[y] = true;
+          if (rs) reasons[rs] = true;
+        });
+        
+        var ySel = document.getElementById('filterYear');
+        Object.keys(years).sort().forEach(function(y) {
+          var o = document.createElement('option');
+          o.value = y; o.textContent = y; ySel.appendChild(o);
+        });
+        
+        var rSel = document.getElementById('filterReason');
+        Object.keys(reasons).sort().forEach(function(r) {
+          var o = document.createElement('option');
+          o.value = r; o.textContent = r; rSel.appendChild(o);
+        });
+      }
+      
+      function filterTable() {
+        var year = document.getElementById('filterYear').value;
+        var reason = document.getElementById('filterReason').value;
+        
+        var filtered = allData.filter(function(r) {
+          var y = (r[5] || '').toString().trim();
+          var rs = (r[6] || '').toString().trim();
+          if (year && y !== year) return false;
+          if (reason && rs !== reason) return false;
+          return true;
+        });
+        
+        renderTable(filtered);
+      }
+      
+      function renderTable(data) {
+        var c = document.getElementById('tableContainer');
+        if (!data.length) { c.innerHTML = '<p class="empty">Нет записей</p>'; return; }
+        var h = '<table><thead><tr><th>Каталог Факт</th><th>Товар Факт</th><th>Каталог Док</th><th>Товар Док</th><th>Кол-во</th><th>Год</th><th>Причина</th><th>Этикетка</th></tr></thead><tbody>';
+        data.forEach(function(r) {
+          h += '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+(r[2]||'—')+'</td><td>'+(r[3]||'—')+'</td><td>'+r[4]+'</td><td>'+(r[5]||'—')+'</td><td>'+(r[6]||'—')+'</td><td>'+(r[7]||'—')+'</td></tr>';
+        });
+        h += '</tbody></table>';
+        c.innerHTML = h;
+      }
+    </script>
+  </body>
+</html>
