@@ -1,0 +1,170 @@
+<script>
+  let fullCatalog = [];
+  let searchModes = { fact: 'name', doc: 'name' };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    google.script.run.withSuccessHandler(function(data) {
+      fullCatalog = data.map(function(item) {
+        return [
+          (item[0] || '').toString().trim(),
+          (item[1] || '').toString().trim(),
+          (item[2] || '').toString().trim()
+        ];
+      });
+    }).getCatalogData();
+    google.script.run.withSuccessHandler(loadBrands).getBrandList();
+  });
+
+  function loadBrands(brands) {
+    var select = document.getElementById('brandSelect');
+    brands.forEach(function(b) {
+      if (b === 'Aero' || b === 'TL' || b === 'K&K') return;
+      var opt = document.createElement('option');
+      opt.value = b;
+      opt.textContent = b;
+      select.insertBefore(opt, select.lastElementChild);
+    });
+  }
+
+  function onBrandSelectChange() {
+    var select = document.getElementById('brandSelect');
+    var custom = document.getElementById('brandCustom');
+    if (select.value === '__CUSTOM__') {
+      custom.style.display = 'block';
+      custom.focus();
+    } else {
+      custom.style.display = 'none';
+      custom.value = '';
+    }
+  }
+
+  function setSearchMode(type, mode, btn) {
+    searchModes[type] = mode;
+    var parent = document.getElementById('searchMode' + (type === 'fact' ? 'Fact' : 'Doc'));
+    parent.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    var input = document.getElementById('search' + (type === 'fact' ? 'Fact' : 'Doc'));
+    input.placeholder = mode === 'code' ? 'Введите каталожный номер...' : 'Введите название или артикул...';
+    input.value = '';
+    input.focus();
+    document.getElementById('list' + (type === 'fact' ? 'Fact' : 'Doc')).style.display = 'none';
+  }
+
+  document.addEventListener('input', function(e) {
+    if (e.target.id === 'searchFact') doSearch(e.target.value, 'fact');
+    else if (e.target.id === 'searchDoc') doSearch(e.target.value, 'doc');
+  });
+
+  document.addEventListener('click', function(e) {
+    if (e.target.id !== 'searchFact' && e.target.id !== 'searchDoc') {
+      document.getElementById('listFact').style.display = 'none';
+      document.getElementById('listDoc').style.display = 'none';
+    }
+  });
+
+  function doSearch(query, type) {
+    var list = document.getElementById('list' + (type === 'fact' ? 'Fact' : 'Doc'));
+    var q = query.trim().toUpperCase();
+    list.innerHTML = '';
+    
+    if (q.length < 2) { list.style.display = 'none'; return; }
+    
+    var words = q.split(/\s+/).filter(function(w) { return w.length > 0; });
+    var mode = searchModes[type];
+    var matches;
+    
+    if (mode === 'code') {
+      // Ищем ТОЛЬКО по каталожному номеру (столбец 0)
+      matches = fullCatalog.filter(function(item) { return item[0].toUpperCase().includes(q); });
+      matches.sort(function(a, b) { return a[0].toUpperCase().indexOf(q) - b[0].toUpperCase().indexOf(q); });
+    } else {
+      // Ищем по названию (1), коду (0) и заводскому артикулу (2)
+      matches = fullCatalog.filter(function(item) {
+        var code = item[0].toUpperCase();
+        var name = item[1].toUpperCase();
+        var art = item[2].toUpperCase();
+        var all = code + ' ' + name + ' ' + art;
+        
+        if (all.includes(q)) return true;
+        return words.every(function(word) {
+          return all.includes(word);
+        });
+      });
+      matches.sort(function(a, b) { return a[1].localeCompare(b[1]); });
+    }
+    
+    if (matches.length === 0) { list.style.display = 'none'; return; }
+    
+    matches.slice(0, 20).forEach(function(item) {
+      var div = document.createElement('div');
+      div.className = 'autocomplete-item';
+      var artText = item[2] ? '<br><span class="match-code">Зав. арт: ' + item[2] + ' | Код: ' + item[0] + '</span>' : '<br><span class="match-code">Код: ' + item[0] + '</span>';
+      div.innerHTML = '<div class="match-name">' + item[1] + '</div>' + artText;
+      div.addEventListener('mousedown', function(event) {
+        event.preventDefault();
+        if (type === 'fact') {
+          document.getElementById('searchFact').value = item[1] + ' [' + item[0] + ']';
+          document.getElementById('articleFact').value = item[0];
+          document.getElementById('productFact').value = item[1];
+        } else {
+          document.getElementById('searchDoc').value = item[1] + ' [' + item[0] + ']';
+          document.getElementById('articleDoc').value = item[0];
+          document.getElementById('productDoc').value = item[1];
+        }
+        list.style.display = 'none';
+      });
+      list.appendChild(div);
+    });
+    list.style.display = 'block';
+  }
+
+  function getBrandValue() {
+    var select = document.getElementById('brandSelect');
+    if (select.value === '__CUSTOM__') return document.getElementById('brandCustom').value.trim();
+    return select.value;
+  }
+
+  function submitForm() {
+    var articleFact = document.getElementById('articleFact').value.trim();
+    var productFact = document.getElementById('productFact').value;
+    var articleDoc = document.getElementById('articleDoc').value.trim();
+    var productDoc = document.getElementById('productDoc').value;
+    var quantity = document.getElementById('quantity').value;
+    var brand = getBrandValue();
+
+    if (!articleFact) { showMessage('Найдите и выберите товар.', 'error'); return; }
+    if (!quantity || quantity < 1) { showMessage('Укажите количество.', 'error'); return; }
+
+    var btn = document.querySelector('button.submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Отправка...';
+
+    google.script.run
+      .withSuccessHandler(function(r) {
+        btn.disabled = false;
+        btn.innerHTML = '📤 Отправить';
+        if (r.status === 'success') {
+          showMessage('✓ ' + r.message, 'success');
+          ['searchFact','articleFact','productFact','searchDoc','articleDoc','productDoc','quantity','brandCustom'].forEach(function(id) {
+            document.getElementById(id).value = '';
+          });
+          document.getElementById('brandSelect').value = '';
+          document.getElementById('brandCustom').style.display = 'none';
+          google.script.run.withSuccessHandler(loadBrands).getBrandList();
+        }
+      })
+      .withFailureHandler(function(e) {
+        btn.disabled = false;
+        btn.innerHTML = '📤 Отправить';
+        showMessage('Ошибка: ' + e.message, 'error');
+      })
+      .submitDefectRecord(articleFact, productFact, articleDoc, productDoc, quantity, brand);
+  }
+
+  function showMessage(t, type) {
+    var b = document.getElementById('messageBox');
+    b.textContent = t;
+    b.className = 'result-message ' + type;
+    if (type === 'success') setTimeout(function() { b.className = 'result-message'; }, 5000);
+  }
+</script>
