@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Google Sans', Roboto, Arial, sans-serif;
+        background: #f8f9fa;
+        color: #202124;
+        padding: 30px;
+        min-height: 100vh;
+      }
+      .container { max-width: 800px; margin: 0 auto; }
+      h1 {
+        font-size: 26px;
+        font-weight: 500;
+        color: #1a73e8;
+        margin-bottom: 6px;
+      }
+      .subtitle { color: #5f6368; margin-bottom: 28px; font-size: 15px; }
+      
+      .summary-cards {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+      }
+      .summary-card {
+        flex: 1;
+        min-width: 150px;
+        background: white;
+        border-radius: 14px;
+        padding: 20px 24px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        text-align: center;
+      }
+      .summary-card .number {
+        font-size: 36px;
+        font-weight: 500;
+        color: #1a73e8;
+        line-height: 1.2;
+      }
+      .summary-card .label {
+        font-size: 13px;
+        color: #5f6368;
+        margin-top: 4px;
+      }
+      
+      .analytics-block {
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      }
+      .block-title {
+        font-size: 18px;
+        font-weight: 500;
+        margin-bottom: 20px;
+        color: #202124;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        background: #f1f3f4;
+        padding: 13px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #5f6368;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      td {
+        padding: 14px 16px;
+        font-size: 14px;
+        border-bottom: 1px solid #f1f3f4;
+      }
+      tr:last-child td { border-bottom: none; }
+      .brand-cell { font-weight: 500; }
+      .brand-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 10px;
+      }
+      .dot-aero { background: #1a73e8; }
+      .dot-tl { background: #ea4335; }
+      .dot-kk { background: #34a853; }
+      .dot-other { background: #f9ab00; }
+      
+      .progress-bar {
+        height: 6px;
+        border-radius: 3px;
+        background: #e8eaed;
+        margin-top: 6px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s;
+      }
+      .fill-aero { background: #1a73e8; }
+      .fill-tl { background: #ea4335; }
+      .fill-kk { background: #34a853; }
+      .fill-other { background: #f9ab00; }
+      
+      .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+        color: #80868b;
+        font-size: 15px;
+      }
+      @media (max-width: 600px) {
+        body { padding: 16px; }
+        .summary-cards { flex-direction: column; }
+        .summary-card { min-width: auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📊 Аналитика брака</h1>
+      <p class="subtitle">Статистика по брендам и общие показатели</p>
+      
+      <div class="summary-cards" id="summaryCards"></div>
+      
+      <div class="analytics-block">
+        <div class="block-title">Детализация по брендам</div>
+        <div id="tableContainer">
+          <div class="empty-state">Загрузка данных...</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        google.script.run.withSuccessHandler(buildPage).getAnalytics();
+      });
+      
+      function getBrandColor(brand) {
+        var b = brand.toUpperCase();
+        if (b === 'AERO') return 'aero';
+        if (b === 'TL') return 'tl';
+        if (b === 'K&K') return 'kk';
+        return 'other';
+      }
+      
+      function buildPage(data) {
+        var cardsHtml = '';
+        cardsHtml += '<div class="summary-card"><div class="number">' + data.totalRecords + '</div><div class="label">Всего записей</div></div>';
+        cardsHtml += '<div class="summary-card"><div class="number">' + data.totalQuantity + '</div><div class="label">Общее кол-во брака</div></div>';
+        cardsHtml += '<div class="summary-card"><div class="number">' + data.brands.length + '</div><div class="label">Брендов</div></div>';
+        document.getElementById('summaryCards').innerHTML = cardsHtml;
+        
+        var container = document.getElementById('tableContainer');
+        
+        if (data.brands.length === 0) {
+          container.innerHTML = '<div class="empty-state">Пока нет данных о браке</div>';
+          return;
+        }
+        
+        var maxCount = data.brands[0].count;
+        
+        var html = '<table><thead><tr>';
+        html += '<th>Бренд</th><th>Кол-во записей</th><th>Доля</th><th>Кол-во товаров</th>';
+        html += '</tr></thead><tbody>';
+        
+        data.brands.forEach(function(item) {
+          var colorClass = getBrandColor(item.brand);
+          var percent = maxCount > 0 ? Math.round((item.count / maxCount) * 100) : 0;
+          var share = data.totalRecords > 0 ? Math.round((item.count / data.totalRecords) * 100) : 0;
+          
+          html += '<tr>';
+          html += '<td class="brand-cell"><span class="brand-dot dot-' + colorClass + '"></span>' + item.brand + '</td>';
+          html += '<td><strong>' + item.count + '</strong>';
+          html += '<div class="progress-bar"><div class="progress-fill fill-' + colorClass + '" style="width:' + percent + '%"></div></div></td>';
+          html += '<td>' + share + '%</td>';
+          html += '<td><strong>' + item.quantity + ' шт.</strong></td>';
+          html += '</tr>';
+        });
+        
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      }
+    </script>
+  </body>
+</html>
