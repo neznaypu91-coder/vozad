@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.9.96/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Google Sans', Roboto, sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+        color: #202124; padding: 24px; min-height: 100vh;
+      }
+      .container { max-width: 900px; margin: 0 auto; }
+      
+      .mp-totals {
+        background: white; border-radius: 16px; padding: 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 24px;
+      }
+      .mp-totals h2 {
+        font-size: 18px; font-weight: 500; margin-bottom: 16px;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .mp-totals h2 .dot { width: 10px; height: 10px; border-radius: 50%; background: #ea4335; display: inline-block; }
+      
+      .flow-table { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      @media (max-width: 600px) { .flow-table { grid-template-columns: 1fr; } }
+      
+      .flow-col { background: #f8f9fa; border-radius: 14px; padding: 20px; }
+      .flow-col h3 { font-size: 15px; font-weight: 500; margin-bottom: 14px; }
+      
+      .flow-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+      .flow-item .fl { font-size: 13px; color: #5f6368; }
+      .flow-item .fv { font-size: 18px; font-weight: 500; }
+      .flow-divider { border-top: 1px dashed #dadce0; margin: 8px 0; padding-top: 8px; }
+      .flow-item.result { background: #fef7e0; border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+      .flow-item.result .fv { color: #d93025; font-size: 22px; }
+      
+      .calendar-block {
+        background: white; border-radius: 16px; padding: 20px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 24px;
+      }
+      .calendar-header {
+        display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+      }
+      .calendar-header button {
+        background: none; border: none; font-size: 20px; cursor: pointer; padding: 8px 12px; border-radius: 8px; color: #5f6368;
+      }
+      .calendar-header button:hover { background: #f1f3f4; }
+      .calendar-header .month-label { font-size: 16px; font-weight: 500; }
+      .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+      .calendar-grid .day-name { font-size: 11px; color: #80868b; padding: 6px 0; font-weight: 500; }
+      .calendar-grid .day {
+        padding: 10px 4px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all 0.15s; position: relative;
+      }
+      .calendar-grid .day:hover { background: #e8f0fe; }
+      .calendar-grid .day.today { background: #e8f0fe; font-weight: 500; color: #1a73e8; }
+      .calendar-grid .day.selected { background: #1a73e8; color: white; font-weight: 500; }
+      .calendar-grid .day.empty { cursor: default; }
+      .calendar-grid .day.has-data::after {
+        content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+        width: 5px; height: 5px; border-radius: 50%; background: #ea4335;
+      }
+      .calendar-grid .day.selected.has-data::after { background: white; }
+      
+      .highlight-date {
+        display: inline-block; background: #fce8e6; color: #d93025;
+        padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 500; margin-bottom: 16px;
+      }
+      
+      .chart-block {
+        background: white; border-radius: 16px; padding: 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 24px;
+      }
+      .chart-block h2 { font-size: 18px; font-weight: 500; margin-bottom: 16px; }
+      .chart-container { position: relative; height: 200px; }
+      canvas { width: 100%; height: 100%; }
+      
+      .opt-section {
+        background: white; border-radius: 16px; padding: 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      }
+      .opt-section h2 { font-size: 16px; font-weight: 500; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+      .opt-section h2 .dot { width: 8px; height: 8px; border-radius: 50%; background: #f9ab00; display: inline-block; }
+      
+      .opt-row { display: flex; gap: 16px; flex-wrap: wrap; }
+      .opt-chip {
+        background: #f8f9fa; border-radius: 10px; padding: 12px 16px;
+        font-size: 13px; text-align: center; min-width: 80px;
+      }
+      .opt-chip .ocv { font-size: 20px; font-weight: 500; }
+      .opt-chip .ocl { font-size: 11px; color: #5f6368; }
+      
+      .empty { text-align: center; padding: 30px; color: #80868b; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      
+      <div class="mp-totals" id="mpTotals">
+        <h2><span class="dot"></span> МП — Общие итоги</h2>
+        <div class="flow-table">
+          <div class="flow-col">
+            <h3>🔘 Шины</h3>
+            <div class="flow-item"><span class="fl">Выгружено</span><span class="fv" id="mpTIn">—</span></div>
+            <div class="flow-item"><span class="fl">Размещено</span><span class="fv" id="mpTOut">—</span></div>
+            <div class="flow-divider"></div>
+            <div class="flow-item result"><span class="fl">Остаток</span><span class="fv" id="mpTDebt">—</span></div>
+          </div>
+          <div class="flow-col">
+            <h3>🛞 Диски</h3>
+            <div class="flow-item"><span class="fl">Выгружено</span><span class="fv" id="mpDIn">—</span></div>
+            <div class="flow-item"><span class="fl">Размещено</span><span class="fv" id="mpDOut">—</span></div>
+            <div class="flow-divider"></div>
+            <div class="flow-item result"><span class="fl">Остаток</span><span class="fv" id="mpDDebt">—</span></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="calendar-block">
+        <div class="calendar-header">
+          <button onclick="changeMonth(-1)">◀</button>
+          <span class="month-label" id="monthLabel"></span>
+          <button onclick="changeMonth(1)">▶</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+      
+      <div id="selectedInfo"></div>
+      
+      <div class="chart-block">
+        <h2>📈 Недельная динамика — 🔘 Шины (МП)</h2>
+        <div class="chart-container"><canvas id="chartTires"></canvas></div>
+      </div>
+      
+      <div class="chart-block">
+        <h2>📈 Недельная динамика — 🛞 Диски (МП)</h2>
+        <div class="chart-container"><canvas id="chartDiscs"></canvas></div>
+      </div>
+      
+      <div class="opt-section">
+        <h2><span class="dot"></span> ОПТ</h2>
+        <div id="optContent"><div class="empty">Выберите дату в календаре</div></div>
+      </div>
+    </div>
+    
+    <script>
+      let allData = null;
+      let currentMonth = new Date().getMonth();
+      let currentYear = new Date().getFullYear();
+      let today = new Date().toLocaleDateString('ru-RU');
+      let selectedDate = '';
+      
+      // ОДИН запрос — всё сразу
+      document.addEventListener('DOMContentLoaded', function() {
+        google.script.run.withSuccessHandler(function(data) {
+          allData = data;
+          updateMPTotals();
+          renderCalendar();
+          drawBothCharts();
+        }).getAllReturnsData();
+      });
+      
+      function updateMPTotals() {
+        var t = allData.totals;
+        document.getElementById('mpTIn').textContent = t.mpInTires;
+        document.getElementById('mpTOut').textContent = t.mpOutTires;
+        document.getElementById('mpTDebt').textContent = t.mpInTires - t.mpOutTires;
+        document.getElementById('mpDIn').textContent = t.mpInDiscs;
+        document.getElementById('mpDOut').textContent = t.mpOutDiscs;
+        document.getElementById('mpDDebt').textContent = t.mpInDiscs - t.mpOutDiscs;
+      }
+      
+      function changeMonth(d) {
+        currentMonth += d;
+        if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+        renderCalendar();
+      }
+      
+      function renderCalendar() {
+        document.getElementById('monthLabel').textContent = 
+          new Date(currentYear, currentMonth).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        
+        var grid = document.getElementById('calendarGrid');
+        var html = '';
+        ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(d) { html += '<div class="day-name">'+d+'</div>'; });
+        
+        var firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        if (firstDay === 0) firstDay = 7;
+        var daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        
+        for (var i = 1; i < firstDay; i++) html += '<div class="day empty"></div>';
+        
+        for (var d = 1; d <= daysInMonth; d++) {
+          var ds = new Date(currentYear, currentMonth, d).toLocaleDateString('ru-RU');
+          var cls = 'day';
+          if (ds === today) cls += ' today';
+          if (ds === selectedDate) cls += ' selected';
+          if (allData.byDate[ds]) cls += ' has-data';
+          html += '<div class="'+cls+'" onclick="selectDate(\''+ds+'\')">'+d+'</div>';
+        }
+        grid.innerHTML = html;
+      }
+      
+      function selectDate(ds) {
+        selectedDate = ds;
+        renderCalendar();
+        
+        var day = allData.byDate[ds] || { optInTires:0, optInDiscs:0, optOutTires:0, optOutDiscs:0 };
+        document.getElementById('selectedInfo').innerHTML = 
+          '<div class="highlight-date">📅 ' + ds + '</div>';
+        
+        var oit = day.optInTires, oid = day.optInDiscs;
+        var oot = day.optOutTires, ood = day.optOutDiscs;
+        
+        document.getElementById('optContent').innerHTML = 
+          '<div class="opt-row">' +
+          '<div class="opt-chip"><div class="ocv">'+oit+'</div><div class="ocl">Шины выгружено</div></div>' +
+          '<div class="opt-chip"><div class="ocv">'+oot+'</div><div class="ocl">Шины размещено</div></div>' +
+          '<div class="opt-chip"><div class="ocv">'+(oit-oot)+'</div><div class="ocl">Остаток шин</div></div>' +
+          '<div class="opt-chip"><div class="ocv">'+oid+'</div><div class="ocl">Диски выгружено</div></div>' +
+          '<div class="opt-chip"><div class="ocv">'+ood+'</div><div class="ocl">Диски размещено</div></div>' +
+          '<div class="opt-chip"><div class="ocv">'+(oid-ood)+'</div><div class="ocl">Остаток дисков</div></div>' +
+          '</div>';
+      }
+      
+      function drawBothCharts() {
+        var dates = [];
+        for (var i = 6; i >= 0; i--) {
+          var d = new Date(); d.setDate(d.getDate() - i);
+          dates.push(d.toLocaleDateString('ru-RU'));
+        }
+        
+        var tiresData = [];
+        var discsData = [];
+        
+        dates.forEach(function(date, idx) {
+          var day = allData.byDate[date] || { tiresIn:0, tiresOut:0, discsIn:0, discsOut:0 };
+          tiresData[idx] = { date: date.slice(0,5), in: day.tiresIn, out: day.tiresOut };
+          discsData[idx] = { date: date.slice(0,5), in: day.discsIn, out: day.discsOut };
+        });
+        
+        drawChart('chartTires', tiresData);
+        drawChart('chartDiscs', discsData);
+      }
+      
+      function drawChart(canvasId, data) {
+        var canvas = document.getElementById(canvasId);
+        var ctx = canvas.getContext('2d');
+        var W = canvas.parentElement.offsetWidth;
+        canvas.width = W; canvas.height = 200;
+        
+        var pad = { top: 20, right: 30, bottom: 30, left: 40 };
+        var w = W - pad.left - pad.right;
+        var h = 200 - pad.top - pad.bottom;
+        
+        var maxVal = 0;
+        data.forEach(function(d) {
+          if (d.in > maxVal) maxVal = d.in;
+          if (d.out > maxVal) maxVal = d.out;
+        });
+        if (maxVal === 0) maxVal = 1;
+        
+        var stepX = data.length > 1 ? w / (data.length - 1) : w;
+        
+        ctx.clearRect(0, 0, W, 200);
+        
+        ctx.strokeStyle = '#e8eaed'; ctx.lineWidth = 1;
+        for (var i = 0; i <= 4; i++) {
+          var y = pad.top + (h / 4) * i;
+          ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+          ctx.fillStyle = '#80868b'; ctx.font = '10px Google Sans';
+          ctx.fillText(Math.round(maxVal - (maxVal/4)*i), 4, y + 3);
+        }
+        
+        function drawLine(key, color, dash) {
+          ctx.beginPath();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5;
+          if (dash) ctx.setLineDash([6, 3]);
+          else ctx.setLineDash([]);
+          
+          data.forEach(function(d, i) {
+            var x = pad.left + stepX * i;
+            var val = d[key];
+            if (val < 0) val = 0;
+            var y = pad.top + h - (val / maxVal) * h;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+          ctx.setLineDash([]);
+          
+          data.forEach(function(d, i) {
+            var val = d[key];
+            if (val < 0) val = 0;
+            var x = pad.left + stepX * i;
+            var y = pad.top + h - (val / maxVal) * h;
+            ctx.beginPath(); ctx.fillStyle = color; ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#202124'; ctx.font = '10px Google Sans'; ctx.textAlign = 'center';
+            ctx.fillText(val, x, y - 8);
+          });
+        }
+        
+        drawLine('in', '#1a73e8', false);
+        drawLine('out', '#34a853', true);
+        
+        ctx.fillStyle = '#5f6368'; ctx.font = '11px Google Sans'; ctx.textAlign = 'center';
+        data.forEach(function(d, i) { ctx.fillText(d.date, pad.left + stepX * i, 195); });
+        
+        var ly = 12;
+        [
+          {l:'Приемка',c:'#1a73e8',d:false},
+          {l:'Размещение',c:'#34a853',d:true}
+        ].forEach(function(x, i) {
+          var lx = W - 180 + i * 90;
+          ctx.setLineDash(x.d ? [4,2] : []);
+          ctx.beginPath(); ctx.strokeStyle = x.c; ctx.lineWidth = 2;
+          ctx.moveTo(lx, ly); ctx.lineTo(lx+16, ly); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = x.c; ctx.beginPath(); ctx.arc(lx+8, ly, 3, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#5f6368'; ctx.textAlign = 'left'; ctx.fillText(x.l, lx+20, ly+4);
+        });
+      }
+    </script>
+  </body>
+</html>
