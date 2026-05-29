@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.9.96/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); color: #202124; padding: 24px; min-height: 100vh; }
+      .container { max-width: 800px; margin: 0 auto; }
+      h1 { font-size: 26px; font-weight: 500; color: #1a73e8; margin-bottom: 6px; text-align: center; }
+      .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 20px; text-align: center; }
+      
+      .month-selector { display: flex; gap: 10px; justify-content: center; margin-bottom: 28px; align-items: center; }
+      .month-selector select, .month-selector button {
+        padding: 10px 16px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+        font-size: 14px; font-family: inherit; background: white;
+      }
+      .month-selector button { background: #1a73e8; color: white; border: none; cursor: pointer; }
+      
+      .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+      @media (max-width: 600px) { .cards { grid-template-columns: 1fr; } }
+      
+      .person-card {
+        background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow: hidden;
+      }
+      .person-header { padding: 20px 24px; cursor: pointer; transition: background 0.1s; }
+      .person-header:hover { background: #fafafa; }
+      .person-card .name { font-size: 18px; font-weight: 500; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+      .person-card .name .arrow { transition: transform 0.2s; color: #80868b; font-size: 14px; }
+      .person-card.open .name .arrow { transform: rotate(180deg); }
+      
+      .total-row { display: flex; gap: 12px; justify-content: center; align-items: baseline; margin-bottom: 8px; }
+      .total-row .big-sum { font-size: 32px; font-weight: 500; color: #1a73e8; }
+      
+      .metrics { display: flex; gap: 12px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
+      .metric { background: #f8f9fa; border-radius: 10px; padding: 10px 14px; text-align: center; min-width: 70px; }
+      .metric .val { font-size: 18px; font-weight: 500; }
+      .metric .lbl { font-size: 10px; color: #80868b; }
+      .metric.bonus .val { color: #1e8e3e; }
+      
+      .person-body { display: none; padding: 0 24px 20px; border-top: 1px solid #f1f3f4; }
+      .person-card.open .person-body { display: block; }
+      
+      .day-group { margin-bottom: 10px; }
+      .day-header { font-size: 13px; font-weight: 500; color: #5f6368; margin-bottom: 6px; display: flex; justify-content: space-between; }
+      .day-header .day-sum { color: #1a73e8; }
+      
+      .day-ops { padding-left: 8px; }
+      .day-op { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; color: #5f6368; }
+      .day-op .op-sum { font-weight: 500; color: #202124; }
+      
+      .total-block {
+        background: white; border-radius: 16px; padding: 24px; text-align: center;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-top: 8px;
+      }
+      .total-block .big-total { font-size: 42px; font-weight: 500; color: #1a73e8; }
+      .total-block .lbl { font-size: 13px; color: #5f6368; }
+      .total-block .sub-metrics { display: flex; gap: 24px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+      .total-block .sub-metric { text-align: center; }
+      .total-block .sub-metric .sv { font-size: 20px; font-weight: 500; }
+      .total-block .sub-metric .sl { font-size: 11px; color: #80868b; }
+      
+      .empty { text-align: center; padding: 60px; color: #80868b; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>💰 Зарплата</h1>
+      <p class="subtitle">Смены +1 840₽ • Нажмите на ФИО для детализации по дням</p>
+      
+      <div class="month-selector">
+        <select id="month">
+          <option value="1">Январь</option><option value="2">Февраль</option><option value="3">Март</option>
+          <option value="4">Апрель</option><option value="5" selected>Май</option><option value="6">Июнь</option>
+          <option value="7">Июль</option><option value="8">Август</option><option value="9">Сентябрь</option>
+          <option value="10">Октябрь</option><option value="11">Ноябрь</option><option value="12">Декабрь</option>
+        </select>
+        <select id="year">
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+        </select>
+        <button onclick="loadData()">Показать</button>
+      </div>
+      
+      <div id="result"><div class="empty">Выберите месяц</div></div>
+    </div>
+    
+    <script>
+      loadData();
+      
+      function loadData() {
+        var m = parseInt(document.getElementById('month').value);
+        var y = parseInt(document.getElementById('year').value);
+        document.getElementById('result').innerHTML = '<div class="empty">Загрузка...</div>';
+        google.script.run
+          .withSuccessHandler(buildPage)
+          .withFailureHandler(function() { document.getElementById('result').innerHTML = '<div class="empty">Ошибка</div>'; })
+          .getSalaryDetailData(m, y);
+      }
+      
+      function buildPage(data) {
+        var sal = data.salary;
+        var names = Object.keys(sal).sort(function(a, b) { return sal[b].total - sal[a].total; });
+        
+        if (names.length === 0) {
+          document.getElementById('result').innerHTML = '<div class="empty">Нет данных за ' + data.month + '.' + data.year + '</div>';
+          return;
+        }
+        
+        var grandTotal = 0, grandQty = 0, grandDays = 0, grandBonus = 0;
+        names.forEach(function(n) {
+          grandTotal += sal[n].total;
+          grandQty += sal[n].quantity;
+          grandDays += sal[n].daysCount;
+          grandBonus += sal[n].daysBonus;
+        });
+        
+        var months = ['','Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+        
+        var html = '<div class="cards">';
+        
+        names.forEach(function(name) {
+          var s = sal[name];
+          var workSum = s.total - s.daysBonus;
+          
+          html += '<div class="person-card" onclick="toggleCard(this)">';
+          html += '<div class="person-header">';
+          html += '<div class="name"><span class="arrow">▼</span> 👤 ' + name + '</div>';
+          html += '<div class="total-row"><span class="big-sum">' + s.total.toLocaleString() + ' ₽</span></div>';
+          html += '<div class="metrics">';
+          html += '<div class="metric bonus"><div class="val">' + s.daysCount + '</div><div class="lbl">смен</div></div>';
+          html += '<div class="metric bonus"><div class="val">' + s.daysBonus.toLocaleString() + ' ₽</div><div class="lbl">за смены</div></div>';
+          html += '<div class="metric"><div class="val">' + workSum.toLocaleString() + ' ₽</div><div class="lbl">за работу</div></div>';
+          html += '<div class="metric"><div class="val">' + s.quantity + '</div><div class="lbl">единиц</div></div>';
+          html += '</div></div>';
+          
+          html += '<div class="person-body">';
+          var days = Object.keys(s.daysData || {}).sort().reverse();
+          if (days.length > 0) {
+            days.forEach(function(day) {
+              var dd = s.daysData[day];
+              var dayTotal = dd.sum + (dd.hasBonus ? data.dailyBonus : 0);
+              html += '<div class="day-group">';
+              html += '<div class="day-header">📅 ' + day + ' <span class="day-sum">' + dayTotal.toLocaleString() + ' ₽</span></div>';
+              html += '<div class="day-ops">';
+              if (dd.hasBonus) {
+                html += '<div class="day-op"><span>Смена</span><span class="op-sum">' + data.dailyBonus.toLocaleString() + ' ₽</span></div>';
+              }
+              dd.ops.forEach(function(op) {
+                html += '<div class="day-op"><span>' + op.name + ' (' + op.qty + ' шт.)</span><span class="op-sum">' + op.sum.toLocaleString() + ' ₽</span></div>';
+              });
+              html += '</div></div>';
+            });
+          }
+          html += '</div>';
+          html += '</div>';
+        });
+        
+        html += '</div>';
+        
+        html += '<div class="total-block">';
+        html += '<div class="lbl">Общий фонд за ' + months[data.month] + '</div>';
+        html += '<div class="big-total">' + grandTotal.toLocaleString() + ' ₽</div>';
+        html += '<div class="sub-metrics">';
+        html += '<div class="sub-metric"><div class="sv">' + grandDays + '</div><div class="sl">Всего смен</div></div>';
+        html += '<div class="sub-metric"><div class="sv">' + grandBonus.toLocaleString() + ' ₽</div><div class="sl">Выплаты за смены</div></div>';
+        html += '<div class="sub-metric"><div class="sv">' + grandQty + '</div><div class="sl">Всего единиц</div></div>';
+        html += '</div></div>';
+        
+        document.getElementById('result').innerHTML = html;
+      }
+      
+      function toggleCard(el) { el.classList.toggle('open'); }
+    </script>
+  </body>
+</html>
