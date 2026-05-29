@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: #f8f9fa; color: #202124; padding: 24px; min-height: 100vh; }
+      .container { max-width: 1100px; margin: 0 auto; }
+      h1 { font-size: 26px; font-weight: 600; color: #1a73e8; margin-bottom: 6px; }
+      .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 20px; }
+      
+      .form-group { margin-bottom: 16px; }
+      label { display: block; font-size: 14px; font-weight: 500; color: #5f6368; margin-bottom: 5px; }
+      textarea { width: 100%; height: 200px; padding: 14px; border: 1.5px solid #e0e0e0; border-radius: 10px; font-size: 13px; font-family: monospace; resize: vertical; }
+      input, select { width: 100%; padding: 14px; border: 1.5px solid #e0e0e0; border-radius: 10px; font-size: 16px; font-family: inherit; font-weight: 500; }
+      select { background: white; cursor: pointer; }
+      
+      .row { display: flex; gap: 14px; }
+      .row > .form-group { flex: 1; }
+      
+      .checkbox-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+      .checkbox-row input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+      .checkbox-row label { margin: 0; cursor: pointer; font-size: 15px; }
+      
+      .btn-row { display: flex; gap: 10px; }
+      .btn-row button { flex: 1; padding: 16px; border: none; border-radius: 14px; font-size: 17px; font-weight: 600; cursor: pointer; font-family: inherit; }
+      .btn-primary { background: #1a73e8; color: white; }
+      .btn-primary:hover { background: #1765cc; }
+      .btn-secondary { background: #f1f3f4; color: #5f6368; }
+      
+      .result { margin-top: 20px; }
+      .result .main-title { text-align: center; font-size: 22px; font-weight: 700; color: #202124; margin-bottom: 20px; }
+      
+      .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+      .filter-bar button { padding: 8px 14px; border: 1px solid #dadce0; border-radius: 8px; background: white; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; }
+      .filter-bar button.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+      
+      table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+      th, td { padding: 10px 12px; font-size: 14px; border: 2px solid #999; font-weight: 500; }
+      th { background: #f1f3f4; font-weight: 700; color: #5f6368; text-align: center; font-size: 13px; cursor: pointer; }
+      th:hover { background: #e8eaed; }
+      td:nth-child(1) { text-align: center; width: 40px; }
+      td:nth-child(2) { white-space: nowrap; font-weight: 600; }
+      td:nth-child(3) { min-width: 220px; }
+      td:nth-child(4) { min-width: 140px; }
+      td:nth-child(5) { text-align: center; width: 70px; }
+      td:nth-child(6) { text-align: center; width: 65px; }
+      td:nth-child(7) { text-align: center; width: 80px; font-weight: 700; font-size: 16px; }
+      
+      td input { width: 100%; padding: 6px 8px; border: 1px solid #dadce0; border-radius: 4px; font-size: 13px; font-family: monospace; text-align: center; }
+      td input:focus { outline: none; border-color: #1a73e8; }
+      
+      .total-row td { background: #e8f0fe; font-weight: 800; color: #1a73e8; font-size: 18px; border: 2px solid #1a73e8; }
+      
+      .source-ms { background: #e6f4ea; }
+      .source-addr { background: #fef7e0; }
+      .source-none { background: #fce8e6; }
+      .source-ms-avail { background: #fff3cd; }
+      .source-tag { font-size: 10px; padding: 2px 6px; border-radius: 8px; display: inline-block; margin-top: 2px; }
+      .tag-ms { background: #ceead6; color: #137333; }
+      .tag-addr { background: #feefc3; color: #b06000; }
+      .tag-none { background: #f5c6cb; color: #a50e0e; }
+      .tag-ms-avail { background: #fff3cd; color: #856404; }
+      
+      .stock-info { font-size: 11px; color: #5f6368; display: block; margin-top: 2px; }
+      .stock-high { color: #1e8e3e; font-weight: 600; }
+      .stock-zero { color: #d93025; font-weight: 600; }
+      
+      .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+      .stat-chip { background: white; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; min-width: 80px; border: 2px solid #e0e0e0; }
+      .stat-chip .sv { font-size: 18px; font-weight: 700; color: #1a73e8; }
+      .stat-chip .sl { font-size: 10px; color: #80868b; }
+      .stat-chip.ms .sv { color: #137333; }
+      .stat-chip.msa .sv { color: #856404; }
+      .stat-chip.addr .sv { color: #b06000; }
+      .stat-chip.none .sv { color: #d93025; }
+      
+      .print-bar { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; }
+      .print-bar button { padding: 12px 28px; background: #1a73e8; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 600; font-family: inherit; }
+      .error { color: #d93025; padding: 12px; background: #fce8e6; border-radius: 8px; font-weight: 500; }
+      
+      @media print {
+        @page { size: landscape; margin: 8mm; }
+        body { background: white; padding: 0; }
+        .no-print { display: none; }
+        .result { margin: 0; }
+        .result .main-title { font-size: 20px; }
+        table { box-shadow: none; }
+        th, td { padding: 8px 10px; font-size: 12px; }
+        td input { border: none; background: transparent; padding: 0; }
+        .stats { display: none; }
+        .source-tag, .filter-bar { display: none; }
+        .source-ms, .source-addr, .source-none, .source-ms-avail { background: transparent; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="no-print">📥 Размещение шин (по остаткам v2)</h1>
+      <p class="subtitle no-print">Сначала рукописи (излишек/обработка) с нужным кол-вом, затем склад > 50</p>
+      
+      <div class="form-group no-print">
+        <label>📦 Данные шин (код / наименование / серия / количество)</label>
+        <textarea id="rawData" placeholder="Каталожный номер	Наименование	Серия	Количество
+41009690	Шина Cordiant...	19049614 от 01.25 до 01.28	1
+..."></textarea>
+      </div>
+      
+      <div class="row no-print">
+        <div class="form-group">
+          <label>📦 Номер ПО (обязательно)</label>
+          <input type="text" id="poNumber" placeholder="000023726">
+        </div>
+        <div class="form-group">
+          <label>🏢 МП (обязательно)</label>
+          <select id="mpNumber">
+            <option value="">Выберите МП...</option>
+            <option value='ООО "Интернет Решения"'>ООО "Интернет Решения"</option>
+            <option value="ООО «РВБ»">ООО «РВБ»</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group no-print">
+        <label>📍 Адрес (обязательно)</label>
+        <input type="text" id="address" placeholder="A11-46-1-2-3-4 2 ряд">
+      </div>
+      
+      <div class="checkbox-row no-print">
+        <input type="checkbox" id="loadAddresses" checked>
+        <label for="loadAddresses">📍 Подобрать адрес (сначала рукописи, потом склад > 50)</label>
+      </div>
+      
+      <div class="btn-row no-print">
+        <button class="btn-primary" onclick="processData()">🔍 Обработать</button>
+        <button class="btn-secondary" onclick="resetForm()">🔄 Сбросить</button>
+      </div>
+      
+      <div class="result" id="result"></div>
+    </div>
+    
+    <script>
+      var currentFilter = 'all';
+      
+      function processData() {
+        var raw = document.getElementById('rawData').value.trim();
+        var po = document.getElementById('poNumber').value.trim();
+        var mp = document.getElementById('mpNumber').value;
+        var addr = document.getElementById('address').value.trim();
+        var loadAddr = document.getElementById('loadAddresses').checked;
+        var res = document.getElementById('result');
+        
+        if (!raw) { res.innerHTML = '<div class="error">Вставьте данные</div>'; return; }
+        if (!po) { res.innerHTML = '<div class="error">Введите номер ПО</div>'; return; }
+        if (!mp) { res.innerHTML = '<div class="error">Выберите МП</div>'; return; }
+        if (!addr) { res.innerHTML = '<div class="error">Введите адрес</div>'; return; }
+        
+        res.innerHTML = '<p style="text-align:center;color:#80868b;font-size:18px;">Обработка...</p>';
+        
+        google.script.run
+          .withSuccessHandler(function(d) {
+            if (d.error) { res.innerHTML = '<div class="error">' + d.error + '</div>'; return; }
+            if (!d.items.length) { res.innerHTML = '<div class="error">Нет данных</div>'; return; }
+            
+            window._placementData = d;
+            currentFilter = 'all';
+            renderResult();
+          })
+          .withFailureHandler(function(e) { res.innerHTML = '<div class="error">Ошибка: ' + (e.message || '') + '</div>'; })
+          .processTirePlacementLoadV2(raw, po, mp, addr, loadAddr);
+      }
+      
+      function renderResult() {
+        var d = window._placementData;
+        var res = document.getElementById('result');
+        
+        // Фильтрация
+        var items = d.items;
+        if (currentFilter === 'ms') items = items.filter(function(i) { return i.source === 'manuscript'; });
+        else if (currentFilter === 'msa') items = items.filter(function(i) { return i.manuscriptAvailable && i.source !== 'manuscript'; });
+        else if (currentFilter === 'addr') items = items.filter(function(i) { return i.source === 'address'; });
+        else if (currentFilter === 'none') items = items.filter(function(i) { return !i.source; });
+        
+        // Статистика по всем
+        var totalQty = 0;
+        d.items.forEach(function(i) { totalQty += i.qty; });
+        
+        var msCount = 0, msQty = 0;
+        var msaCount = 0, msaQty = 0;
+        var addrCount = 0, addrQty = 0;
+        var noneCount = 0, noneQty = 0;
+        
+        d.items.forEach(function(i) {
+          if (i.source === 'manuscript') { msCount++; msQty += i.qty; }
+          else if (i.manuscriptAvailable && i.source !== 'manuscript') { msaCount++; msaQty += i.qty; }
+          else if (i.source === 'address') { addrCount++; addrQty += i.qty; }
+          else { noneCount++; noneQty += i.qty; }
+        });
+        
+        var html = '<div class="print-bar no-print"><button onclick="window.print()">🖨 Печать</button></div>';
+        
+        html += '<div class="stats no-print">';
+        html += '<div class="stat-chip"><div class="sv">' + d.items.length + ' / ' + totalQty + '</div><div class="sl">Строк / Штук</div></div>';
+        html += '<div class="stat-chip ms"><div class="sv">' + msCount + ' / ' + msQty + '</div><div class="sl">Рукописи</div></div>';
+        html += '<div class="stat-chip msa"><div class="sv">' + msaCount + ' / ' + msaQty + '</div><div class="sl">Рукопись есть, но < нормы</div></div>';
+        html += '<div class="stat-chip addr"><div class="sv">' + addrCount + ' / ' + addrQty + '</div><div class="sl">Склад >50</div></div>';
+        html += '<div class="stat-chip none"><div class="sv">' + noneCount + ' / ' + noneQty + '</div><div class="sl">Без адреса</div></div>';
+        html += '</div>';
+        
+        // Фильтр-бар
+        html += '<div class="filter-bar no-print">';
+        html += '<button class="' + (currentFilter === 'all' ? 'active' : '') + '" onclick="setFilter(\'all\')">Все</button>';
+        html += '<button class="' + (currentFilter === 'ms' ? 'active' : '') + '" onclick="setFilter(\'ms\')">📝 Рукописи</button>';
+        html += '<button class="' + (currentFilter === 'msa' ? 'active' : '') + '" onclick="setFilter(\'msa\')">⚠️ Рукопись есть, но < нормы</button>';
+        html += '<button class="' + (currentFilter === 'addr' ? 'active' : '') + '" onclick="setFilter(\'addr\')">🏭 Склад >50</button>';
+        html += '<button class="' + (currentFilter === 'none' ? 'active' : '') + '" onclick="setFilter(\'none\')">❌ Без адреса</button>';
+        html += '</div>';
+        
+        // Заголовок
+        html += '<div class="main-title">ПО №' + d.poNumber + '     ' + d.mpNumber + '     ' + d.address + '</div>';
+        
+        if (!items.length) {
+          html += '<p style="text-align:center;padding:20px;color:#80868b;">Нет позиций по выбранному фильтру</p>';
+          res.innerHTML = html;
+          return;
+        }
+        
+        // Таблица
+        html += '<table><thead><tr><th>№</th><th>Код</th><th>Наименование</th><th>Адрес размещения</th><th>Остаток</th><th>Год</th><th>Кол-во</th></tr></thead><tbody>';
+        
+        var filteredQty = 0;
+        items.forEach(function(item, i) {
+          filteredQty += item.qty;
+          
+          var rowClass = '';
+          var tagHtml = '';
+          if (item.source === 'manuscript') {
+            rowClass = 'source-ms';
+            tagHtml = '<span class="source-tag tag-ms">📝 рукопись</span>';
+          } else if (item.manuscriptAvailable && item.source !== 'manuscript') {
+            rowClass = 'source-ms-avail';
+            tagHtml = '<span class="source-tag tag-ms-avail">⚠️ рукопись < нормы</span>';
+          } else if (item.source === 'address') {
+            rowClass = 'source-addr';
+            tagHtml = '<span class="source-tag tag-addr">🏭 склад >50</span>';
+          } else {
+            rowClass = 'source-none';
+            tagHtml = '<span class="source-tag tag-none">❌ нет</span>';
+          }
+          
+          html += '<tr class="' + rowClass + '">';
+          html += '<td>' + (i+1) + '</td>';
+          html += '<td>' + item.article + '</td>';
+          html += '<td>' + item.name + '</td>';
+          html += '<td><input type="text" value="' + item.address + '" onchange="updateAddress(' + d.items.indexOf(item) + ', this.value)" style="' + (!item.address ? 'background:#fce8e6;' : '') + '">' + tagHtml + '</td>';
+          html += '<td><span class="' + (item.stockQty > 0 ? 'stock-high' : 'stock-zero') + '">' + item.stockQty + '</span></td>';
+          html += '<td>' + item.year + '</td>';
+          html += '<td>' + item.qty + '</td>';
+          html += '</tr>';
+        });
+        
+        html += '<tr class="total-row"><td colspan="6" style="text-align:right;">Общее количество:</td><td>' + filteredQty + '</td></tr>';
+        html += '</tbody></table>';
+        
+        res.innerHTML = html;
+      }
+      
+      function setFilter(filter) {
+        currentFilter = filter;
+        renderResult();
+      }
+      
+      function updateAddress(index, newAddr) {
+        if (window._placementData && window._placementData.items[index]) {
+          window._placementData.items[index].address = newAddr;
+        }
+      }
+      
+      function resetForm() {
+        document.getElementById('rawData').value = '';
+        document.getElementById('poNumber').value = '';
+        document.getElementById('mpNumber').value = '';
+        document.getElementById('address').value = '';
+        document.getElementById('result').innerHTML = '';
+      }
+    </script>
+  </body>
+</html>
