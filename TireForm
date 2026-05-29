@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+  if (sessionStorage.getItem('auth') !== 'yes') {
+    window.location.href = '?page=login';
+  }
+</script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.9.96/css/materialdesignicons.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Google Sans', Roboto, sans-serif; background: #f8f9fa; color: #202124; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+      .container { width: 100%; max-width: 700px; background: white; border-radius: 18px; padding: 32px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+      h1 { font-size: 24px; font-weight: 500; color: #1a73e8; margin-bottom: 4px; }
+      .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 24px; }
+      
+      .form-group { margin-bottom: 18px; position: relative; }
+      label { display: block; font-size: 13px; font-weight: 500; color: #5f6368; margin-bottom: 5px; }
+      input, select, textarea {
+        width: 100%; padding: 12px 14px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+        font-size: 15px; font-family: inherit; background: #fafafa; transition: all 0.2s;
+      }
+      input:focus, select:focus, textarea:focus { outline: none; border-color: #1a73e8; background: white; box-shadow: 0 0 0 3px rgba(26,115,232,0.08); }
+      .row { display: flex; gap: 14px; }
+      .row > .form-group { flex: 1; }
+      
+      .search-mode { display: flex; gap: 0; margin-bottom: 10px; }
+      .search-mode button { flex: 1; padding: 9px; border: 1px solid #dadce0; background: #f8f9fa; color: #5f6368; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; }
+      .search-mode button:first-child { border-radius: 8px 0 0 8px; }
+      .search-mode button:last-child { border-radius: 0 8px 8px 0; }
+      .search-mode button.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+      
+      .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #dadce0; border-top: none; border-radius: 0 0 8px 8px; max-height: 240px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+      .autocomplete-item { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f3f4; }
+      .autocomplete-item:hover { background: #e8f0fe; }
+      .match-name { font-weight: 500; }
+      .match-code { color: #5f6368; font-size: 11px; }
+      .auto-filled { background-color: #f1f3f4 !important; }
+      
+      textarea { resize: vertical; min-height: 60px; }
+      button.submit-btn { width: 100%; padding: 16px; background: #1a73e8; color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 500; cursor: pointer; font-family: inherit; margin-top: 16px; }
+      button.submit-btn:hover { background: #1765cc; }
+      button.submit-btn:disabled { background: #a8c7fa; cursor: not-allowed; }
+      .result-message { margin-top: 14px; padding: 12px; border-radius: 10px; font-size: 13px; display: none; text-align: center; }
+      .success { background: #e6f4ea; color: #1e8e3e; display: block; }
+      .error { background: #fce8e6; color: #d93025; display: block; }
+      .hint { font-size: 11px; color: #80868b; margin-top: 2px; }
+      hr { border: none; border-top: 1px solid #e8eaed; margin: 20px 0; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🛞 Брак шин</h1>
+      <p class="subtitle">Поиск по базе или ручной ввод товара</p>
+      
+      <div id="messageBox" class="result-message"></div>
+      
+      <div class="form-group">
+        <label>🔍 Поиск шины (Факт)</label>
+        <div class="search-mode" id="searchModeFact">
+          <button class="active" onclick="setSearchMode('fact','name',this)">По названию</button>
+          <button onclick="setSearchMode('fact','code',this)">По кат. номеру</button>
+        </div>
+        <input type="text" id="searchFact" placeholder="Введите название или код..." autocomplete="off">
+        <div id="listFact" class="autocomplete-list"></div>
+      </div>
+      <div class="form-group"><label>Каталожный номер (Факт)</label><input type="text" id="articleFact" class="auto-filled" readonly placeholder="Из поиска"></div>
+      <div class="form-group">
+        <label>Товар (Факт)</label>
+        <input type="text" id="productFact" placeholder="Из поиска или впишите вручную">
+        <div class="hint">Можно выбрать из поиска или написать вручную</div>
+      </div>
+
+      <hr>
+
+      <div class="form-group">
+        <label>🔍 Поиск шины (по документу)</label>
+        <div class="search-mode" id="searchModeDoc">
+          <button class="active" onclick="setSearchMode('doc','name',this)">По названию</button>
+          <button onclick="setSearchMode('doc','code',this)">По кат. номеру</button>
+        </div>
+        <input type="text" id="searchDoc" placeholder="Введите название или код..." autocomplete="off">
+        <div id="listDoc" class="autocomplete-list"></div>
+      </div>
+      <div class="form-group"><label>Каталожный номер (по документу)</label><input type="text" id="articleDoc" class="auto-filled" readonly placeholder="Из поиска"></div>
+      <div class="form-group"><label>Товар (по документу)</label><input type="text" id="productDoc" class="auto-filled" readonly placeholder="Из поиска"></div>
+      
+      <hr>
+      
+      <div class="row">
+        <div class="form-group"><label>📦 Количество</label><input type="number" id="quantity" min="1" placeholder="0"></div>
+        <div class="form-group"><label>📅 Год производства</label><input type="text" id="year" placeholder="2023"></div>
+      </div>
+      
+      <div class="row">
+        <div class="form-group"><label>📝 Причина брака</label><input type="text" id="reason" placeholder="Опишите причину..."></div>
+        <div class="form-group"><label>🏷️ Номер этикетки</label><input type="text" id="label" placeholder="Введите номер..."></div>
+      </div>
+      
+      <button class="submit-btn" onclick="submitForm()">📤 Отправить</button>
+    </div>
+    
+    <script>
+      let fullCatalog = [];
+      let searchModes = { fact: 'name', doc: 'name' };
+      
+      google.script.run.withSuccessHandler(function(d) {
+        fullCatalog = d.map(function(item) { return [item[0].toString().trim(), item[1].toString().trim()]; });
+      }).getTireCatalogData();
+      
+      function setSearchMode(type, mode, btn) {
+        searchModes[type] = mode;
+        var parent = document.getElementById('searchMode' + (type === 'fact' ? 'Fact' : 'Doc'));
+        parent.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        var input = document.getElementById('search' + (type === 'fact' ? 'Fact' : 'Doc'));
+        input.placeholder = mode === 'code' ? 'Введите каталожный номер...' : 'Введите название шины...';
+        input.value = '';
+        document.getElementById('list' + (type === 'fact' ? 'Fact' : 'Doc')).style.display = 'none';
+        input.focus();
+      }
+      
+      document.addEventListener('input', function(e) {
+        if (e.target.id === 'searchFact') doSearch(e.target.value, 'fact');
+        else if (e.target.id === 'searchDoc') doSearch(e.target.value, 'doc');
+      });
+      
+      document.addEventListener('click', function(e) {
+        if (e.target.id !== 'searchFact' && e.target.id !== 'searchDoc') {
+          document.getElementById('listFact').style.display = 'none';
+          document.getElementById('listDoc').style.display = 'none';
+        }
+      });
+      
+      function doSearch(query, type) {
+        var list = document.getElementById('list' + (type === 'fact' ? 'Fact' : 'Doc'));
+        var q = query.trim().toUpperCase();
+        list.innerHTML = '';
+        if (q.length < 2) { list.style.display = 'none'; return; }
+        
+        var words = q.split(/\s+/).filter(function(w) { return w.length > 0; });
+        var mode = searchModes[type];
+        var matches;
+        
+        if (mode === 'code') {
+          matches = fullCatalog.filter(function(item) { return item[0].toUpperCase().includes(q); });
+        } else {
+          matches = fullCatalog.filter(function(item) {
+            var all = (item[0] + ' ' + item[1]).toUpperCase();
+            if (all.includes(q)) return true;
+            return words.every(function(w) { return all.includes(w); });
+          });
+        }
+        
+        if (matches.length === 0) { list.style.display = 'none'; return; }
+        
+        matches.slice(0, 15).forEach(function(item) {
+          var div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          div.innerHTML = '<div class="match-name">' + item[1] + '</div><div class="match-code">Код: ' + item[0] + '</div>';
+          div.addEventListener('mousedown', function(ev) { ev.preventDefault(); selectItem(item, type); list.style.display = 'none'; });
+          list.appendChild(div);
+        });
+        list.style.display = 'block';
+      }
+      
+      function selectItem(item, type) {
+        document.getElementById('search' + (type === 'fact' ? 'Fact' : 'Doc')).value = item[1] + ' [' + item[0] + ']';
+        document.getElementById('article' + (type === 'fact' ? 'Fact' : 'Doc')).value = item[0];
+        document.getElementById('product' + (type === 'fact' ? 'Fact' : 'Doc')).value = item[1];
+      }
+      
+      function submitForm() {
+        var articleFact = document.getElementById('articleFact').value.trim();
+        var productFact = document.getElementById('productFact').value.trim();
+        var articleDoc = document.getElementById('articleDoc').value.trim();
+        var productDoc = document.getElementById('productDoc').value.trim();
+        var quantity = document.getElementById('quantity').value;
+        var year = document.getElementById('year').value.trim();
+        var reason = document.getElementById('reason').value.trim();
+        var label = document.getElementById('label').value.trim();
+        
+        if (!productFact) { showMessage('Укажите товар (факт).', 'error'); return; }
+        if (!quantity || quantity < 1) { showMessage('Укажите количество.', 'error'); return; }
+        
+        var btn = document.querySelector('.submit-btn');
+        btn.disabled = true; btn.textContent = '⏳ Отправка...';
+        
+        google.script.run
+          .withSuccessHandler(function(r) {
+            btn.disabled = false; btn.textContent = '📤 Отправить';
+            if (r.status === 'success') {
+              showMessage('✓ ' + r.message, 'success');
+              ['searchFact','articleFact','productFact','searchDoc','articleDoc','productDoc','quantity','year','reason','label'].forEach(function(id) {
+                document.getElementById(id).value = '';
+              });
+            }
+          })
+          .withFailureHandler(function(e) { btn.disabled = false; btn.textContent = '📤 Отправить'; showMessage('Ошибка', 'error'); })
+          .submitTireDefect(articleFact, productFact, articleDoc, productDoc, quantity, year, reason, label);
+      }
+      
+      function showMessage(t, type) { var b = document.getElementById('messageBox'); b.textContent = t; b.className = 'result-message ' + type; if (type === 'success') setTimeout(function() { b.className = 'result-message'; }, 4000); }
+    </script>
+  </body>
+</html>
