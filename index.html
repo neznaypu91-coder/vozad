@@ -65,135 +65,135 @@
     </div>
     
     <script>
-      // URL твоего Apps Script — замени на свой
-      var API_URL = 'https://script.google.com/macros/s/AKfycbzd9WmcyT0wQve_cvaDjE3h-fyKx6yNHr-QV2h3I0GpAmcStVs8Zwagf4KlrB1o1yKp/exec';
+  var API_URL = 'https://script.google.com/macros/s/AKfycbzd9WmcyT0wQve_cvaDjE3h-fyKx6yNHr-QV2h3I0GpAmcStVs8Zwagf4KlrB1o1yKp/exec';
+  
+  function api(action, params) {
+    return fetch(API_URL + '?action=' + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params || {})
+    }).then(function(r) { return r.json(); });
+  }
+  
+  api('getDashboardData')
+    .then(function(d) {
+      if (!d) { document.getElementById('content').innerHTML = '<div class="empty">Нет данных</div>'; return; }
+      document.getElementById('dateLabel').textContent = 'Сегодня: ' + (d.today || '');
       
-      function api(action, params) {
-        return fetch(API_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: action, params: params || {} })
-        }).then(function(r) { return r.json(); });
-      }
+      var html = '';
       
-      api('getDashboardData')
-        .then(function(d) {
-          if (!d) { document.getElementById('content').innerHTML = '<div class="empty">Нет данных</div>'; return; }
-          document.getElementById('dateLabel').textContent = 'Сегодня: ' + (d.today || '');
-          
-          var html = '';
-          
-          html += '<div class="top-row">';
-          html += '<div class="card"><h2><span class="dot dot-blue"></span> Выполнение норматива</h2><div class="card-body">';
-          var ringClass = d.normPct >= 90 ? 'good' : 'bad';
-          html += '<div class="ring ' + ringClass + '">' + d.normPct + '%</div>';
-          html += '<div style="font-size:24px;font-weight:500;margin-top:12px;">' + d.normCount + '</div>';
-          html += '<div class="big-label">Операций сегодня</div></div></div>';
-          
-          html += '<div class="card"><h2><span class="dot dot-red"></span> Брак</h2><div class="card-body">';
-          html += '<div class="mp-big">' + d.brakeTires + '</div><div class="mp-label">🔘 Шины</div>';
-          html += '<div class="mp-big" style="margin-top:8px;">' + d.brakeDiscs + '</div><div class="mp-label">🛞 Диски</div></div></div>';
-          html += '</div>';
-          
-          html += '<div class="top-row">';
-          html += '<div class="card"><h2><span class="dot dot-yellow"></span> Возвраты сегодня</h2><div class="card-body">';
-          html += '<div class="big-number" style="color:#e37400;">' + (d.todayIn + d.todayOut) + '</div><div class="big-label">Всего единиц</div>';
-          html += '<div class="stat-row" style="margin-top:12px;"><span>📥 Принято</span><span class="sr" style="color:#1a73e8;">' + d.todayIn + ' шт.</span></div>';
-          html += '<div class="stat-row"><span>📤 Размещено</span><span class="sr" style="color:#1e8e3e;">' + d.todayOut + ' шт.</span></div></div></div>';
-          
-          html += '<div class="card"><h2><span class="dot dot-purple"></span> Остатки МП</h2><div class="card-body">';
-          html += '<div class="mp-big">' + d.mpTiresDebt + '</div><div class="mp-label">🔘 Шины</div>';
-          html += '<div class="mp-big" style="margin-top:8px;">' + d.mpDiscsDebt + '</div><div class="mp-label">🛞 Диски</div></div></div>';
-          html += '</div>';
-          
-          html += '<div class="full-card"><h2><span class="dot dot-red"></span> Карантин</h2><div class="triple">';
-          html += '<div class="tcell"><div class="tv" style="color:#d93025;">' + d.qKaratQty + ' / ' + d.qKaratRows + '</div><div class="tl">Карантин (ед. / строк)</div></div>';
-          html += '<div class="tcell"><div class="tv" style="color:#1a73e8;">' + d.qWaitQty + ' / ' + d.qWaitRows + '</div><div class="tl">Ожидает подпись (ед. / строк)</div></div>';
-          html += '<div class="tcell"><div class="tv" style="color:#1e8e3e;">' + d.qCanGoQty + ' / ' + d.qCanGoRows + '</div><div class="tl">Можно развозить (ед. / строк)</div></div>';
-          html += '</div></div>';
-          
-          html += '<div class="full-card"><h2><span class="dot dot-green"></span> Остатки на складе</h2><div class="triple">';
-          html += '<div class="tcell"><div class="tv" style="color:#1a73e8;">' + d.stockTires + '</div><div class="tl">🔘 Шин</div></div>';
-          html += '<div class="tcell"><div class="tv" style="color:#7c3aed;">' + d.stockDiscs + '</div><div class="tl">🛞 Дисков</div></div>';
-          html += '<div class="tcell"><div class="tv">' + (d.stockTires + d.stockDiscs) + '</div><div class="tl">Всего</div></div>';
-          html += '</div></div>';
-          
-          html += '<div class="full-card"><h2><span class="dot dot-purple"></span> Эффективность за неделю</h2>';
-          html += '<div class="chart-container"><canvas id="effChart"></canvas></div></div>';
-          
-          document.getElementById('content').innerHTML = html;
-          
-          loadEffChart();
-        })
-        .catch(function(e) {
-          document.getElementById('content').innerHTML = '<div class="empty">Ошибка: ' + e.message + '</div>';
-        });
+      html += '<div class="top-row">';
+      html += '<div class="card"><h2><span class="dot dot-blue"></span> Выполнение норматива</h2><div class="card-body">';
+      var ringClass = d.normPct >= 90 ? 'good' : 'bad';
+      html += '<div class="ring ' + ringClass + '">' + d.normPct + '%</div>';
+      html += '<div style="font-size:24px;font-weight:500;margin-top:12px;">' + d.normCount + '</div>';
+      html += '<div class="big-label">Операций сегодня</div></div></div>';
       
-      function loadEffChart() {
-        var canvas = document.getElementById('effChart');
-        if (!canvas) { setTimeout(loadEffChart, 300); return; }
-        
-        api('getWeekEfficiency')
-          .then(function(eff) {
-            if (!eff || !eff.people || !eff.people.length) return;
-            drawEffChart(eff);
-          });
-      }
+      html += '<div class="card"><h2><span class="dot dot-red"></span> Брак</h2><div class="card-body">';
+      html += '<div class="mp-big">' + d.brakeTires + '</div><div class="mp-label">🔘 Шины</div>';
+      html += '<div class="mp-big" style="margin-top:8px;">' + d.brakeDiscs + '</div><div class="mp-label">🛞 Диски</div></div></div>';
+      html += '</div>';
       
-      function drawEffChart(eff) {
-        var canvas = document.getElementById('effChart');
-        if (!canvas) return;
-        var ctx = canvas.getContext('2d');
-        var container = canvas.parentElement;
-        var W = container.offsetWidth || 850;
-        
-        canvas.width = W;
-        canvas.height = 200;
-        canvas.style.width = W + 'px';
-        canvas.style.height = '200px';
-        
-        var pad = { top: 20, right: 20, bottom: 30, left: 40 };
-        var w = W - pad.left - pad.right;
-        var h = 200 - pad.top - pad.bottom;
-        var stepX = eff.dates.length > 1 ? w / (eff.dates.length - 1) : w;
-        
-        ctx.clearRect(0, 0, W, 200);
-        ctx.strokeStyle = '#e8eaed'; ctx.lineWidth = 1;
-        for (var i = 0; i <= 4; i++) {
-          var y = pad.top + (h / 4) * i;
-          ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-          ctx.fillStyle = '#80868b'; ctx.font = '10px Google Sans';
-          ctx.fillText(100 - i * 25 + '%', 4, y + 3);
-        }
-        
-        var colors = ['#1a73e8', '#ea4335', '#34a853', '#f9ab00', '#7c3aed'];
-        eff.people.forEach(function(person, pi) {
-          var color = colors[pi % colors.length];
-          ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2;
-          person.data.forEach(function(day, i) {
-            var x = pad.left + stepX * i;
-            var val = day.value || 0;
-            var y = pad.top + h - (val / 100) * h;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-          });
-          ctx.stroke();
-          person.data.forEach(function(day, i) {
-            if (day.value === null) return;
-            var x = pad.left + stepX * i;
-            var y = pad.top + h - (day.value / 100) * h;
-            ctx.beginPath(); ctx.fillStyle = color; ctx.arc(x, y, 3, 0, Math.PI*2); ctx.fill();
-          });
-        });
-        
-        ctx.fillStyle = '#5f6368'; ctx.font = '11px Google Sans'; ctx.textAlign = 'center';
-        eff.dates.forEach(function(d, i) { ctx.fillText(d, pad.left + stepX * i, 195); });
-        eff.people.forEach(function(p, i) {
-          var ly = 12 + i * 16;
-          ctx.fillStyle = colors[i % colors.length];
-          ctx.fillRect(W - 190, ly - 4, 8, 8);
-          ctx.fillStyle = '#5f6368'; ctx.textAlign = 'left';
-          ctx.fillText(p.name + ' (' + p.avg + '%)', W - 178, ly + 4);
-        });
-      }
-    </script>
+      html += '<div class="top-row">';
+      html += '<div class="card"><h2><span class="dot dot-yellow"></span> Возвраты сегодня</h2><div class="card-body">';
+      html += '<div class="big-number" style="color:#e37400;">' + (d.todayIn + d.todayOut) + '</div><div class="big-label">Всего единиц</div>';
+      html += '<div class="stat-row" style="margin-top:12px;"><span>📥 Принято</span><span class="sr" style="color:#1a73e8;">' + d.todayIn + ' шт.</span></div>';
+      html += '<div class="stat-row"><span>📤 Размещено</span><span class="sr" style="color:#1e8e3e;">' + d.todayOut + ' шт.</span></div></div></div>';
+      
+      html += '<div class="card"><h2><span class="dot dot-purple"></span> Остатки МП</h2><div class="card-body">';
+      html += '<div class="mp-big">' + d.mpTiresDebt + '</div><div class="mp-label">🔘 Шины</div>';
+      html += '<div class="mp-big" style="margin-top:8px;">' + d.mpDiscsDebt + '</div><div class="mp-label">🛞 Диски</div></div></div>';
+      html += '</div>';
+      
+      html += '<div class="full-card"><h2><span class="dot dot-red"></span> Карантин</h2><div class="triple">';
+      html += '<div class="tcell"><div class="tv" style="color:#d93025;">' + d.qKaratQty + ' / ' + d.qKaratRows + '</div><div class="tl">Карантин (ед. / строк)</div></div>';
+      html += '<div class="tcell"><div class="tv" style="color:#1a73e8;">' + d.qWaitQty + ' / ' + d.qWaitRows + '</div><div class="tl">Ожидает подпись (ед. / строк)</div></div>';
+      html += '<div class="tcell"><div class="tv" style="color:#1e8e3e;">' + d.qCanGoQty + ' / ' + d.qCanGoRows + '</div><div class="tl">Можно развозить (ед. / строк)</div></div>';
+      html += '</div></div>';
+      
+      html += '<div class="full-card"><h2><span class="dot dot-green"></span> Остатки на складе</h2><div class="triple">';
+      html += '<div class="tcell"><div class="tv" style="color:#1a73e8;">' + d.stockTires + '</div><div class="tl">🔘 Шин</div></div>';
+      html += '<div class="tcell"><div class="tv" style="color:#7c3aed;">' + d.stockDiscs + '</div><div class="tl">🛞 Дисков</div></div>';
+      html += '<div class="tcell"><div class="tv">' + (d.stockTires + d.stockDiscs) + '</div><div class="tl">Всего</div></div>';
+      html += '</div></div>';
+      
+      html += '<div class="full-card"><h2><span class="dot dot-purple"></span> Эффективность за неделю</h2>';
+      html += '<div class="chart-container"><canvas id="effChart"></canvas></div></div>';
+      
+      document.getElementById('content').innerHTML = html;
+      
+      loadEffChart();
+    })
+    .catch(function(e) {
+      document.getElementById('content').innerHTML = '<div class="empty">Ошибка: ' + e.message + '</div>';
+    });
+  
+  function loadEffChart() {
+    var canvas = document.getElementById('effChart');
+    if (!canvas) { setTimeout(loadEffChart, 300); return; }
+    
+    api('getWeekEfficiency')
+      .then(function(eff) {
+        if (!eff || !eff.people || !eff.people.length) return;
+        drawEffChart(eff);
+      });
+  }
+  
+  function drawEffChart(eff) {
+    var canvas = document.getElementById('effChart');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var container = canvas.parentElement;
+    var W = container.offsetWidth || 850;
+    
+    canvas.width = W;
+    canvas.height = 200;
+    canvas.style.width = W + 'px';
+    canvas.style.height = '200px';
+    
+    var pad = { top: 20, right: 20, bottom: 30, left: 40 };
+    var w = W - pad.left - pad.right;
+    var h = 200 - pad.top - pad.bottom;
+    var stepX = eff.dates.length > 1 ? w / (eff.dates.length - 1) : w;
+    
+    ctx.clearRect(0, 0, W, 200);
+    ctx.strokeStyle = '#e8eaed'; ctx.lineWidth = 1;
+    for (var i = 0; i <= 4; i++) {
+      var y = pad.top + (h / 4) * i;
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+      ctx.fillStyle = '#80868b'; ctx.font = '10px Google Sans';
+      ctx.fillText(100 - i * 25 + '%', 4, y + 3);
+    }
+    
+    var colors = ['#1a73e8', '#ea4335', '#34a853', '#f9ab00', '#7c3aed'];
+    eff.people.forEach(function(person, pi) {
+      var color = colors[pi % colors.length];
+      ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2;
+      person.data.forEach(function(day, i) {
+        var x = pad.left + stepX * i;
+        var val = day.value || 0;
+        var y = pad.top + h - (val / 100) * h;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      person.data.forEach(function(day, i) {
+        if (day.value === null) return;
+        var x = pad.left + stepX * i;
+        var y = pad.top + h - (day.value / 100) * h;
+        ctx.beginPath(); ctx.fillStyle = color; ctx.arc(x, y, 3, 0, Math.PI*2); ctx.fill();
+      });
+    });
+    
+    ctx.fillStyle = '#5f6368'; ctx.font = '11px Google Sans'; ctx.textAlign = 'center';
+    eff.dates.forEach(function(d, i) { ctx.fillText(d, pad.left + stepX * i, 195); });
+    eff.people.forEach(function(p, i) {
+      var ly = 12 + i * 16;
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fillRect(W - 190, ly - 4, 8, 8);
+      ctx.fillStyle = '#5f6368'; ctx.textAlign = 'left';
+      ctx.fillText(p.name + ' (' + p.avg + '%)', W - 178, ly + 4);
+    });
+  }
+</script>
   </body>
 </html>
