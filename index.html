@@ -68,12 +68,14 @@
   var API_URL = 'https://script.google.com/macros/s/AKfycbzd9WmcyT0wQve_cvaDjE3h-fyKx6yNHr-QV2h3I0GpAmcStVs8Zwagf4KlrB1o1yKp/exec';
   
   function api(action, params) {
-    return fetch(API_URL + '?action=' + action, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params || {})
-    }).then(function(r) { return r.json(); });
+  var url = API_URL + '?action=' + action;
+  if (params) {
+    Object.keys(params).forEach(function(key) {
+      url += '&' + key + '=' + encodeURIComponent(JSON.stringify(params[key]));
+    });
   }
+  return fetch(url).then(function(r) { return r.json(); });
+}
   
   api('getDashboardData')
     .then(function(d) {
