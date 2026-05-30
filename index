@@ -2,23 +2,7 @@
 <html>
   <head>
     <base target="_top">
-    <script>
-  if (sessionStorage.getItem('auth') !== 'yes') {
-    window.location.href = '?page=login';
-  }
-</script>
     <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.9.96/css/materialdesignicons.min.css" rel="stylesheet">
-    
-    <!-- PWA -->
-    <link rel="manifest" href="?page=manifest">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <link rel="apple-touch-icon" href="https://img.icons8.com/emoji/144/000000/package-.png">
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('?page=sw');
-      }
-    </script>
     
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -81,8 +65,18 @@
     </div>
     
     <script>
-      google.script.run
-        .withSuccessHandler(function(d) {
+      // URL твоего Apps Script — замени на свой
+      var API_URL = 'https://script.google.com/macros/s/AKfycbyu2sqxLgOyQZPlr0Oe_IQgF5xePV4ZnPWTr3mcXL8Up_gN3mfXFkII0G0UKEsuiYiV/exec';
+      
+      function api(action, params) {
+        return fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: action, params: params || {} })
+        }).then(function(r) { return r.json(); });
+      }
+      
+      api('getDashboardData')
+        .then(function(d) {
           if (!d) { document.getElementById('content').innerHTML = '<div class="empty">Нет данных</div>'; return; }
           document.getElementById('dateLabel').textContent = 'Сегодня: ' + (d.today || '');
           
@@ -130,19 +124,19 @@
           
           loadEffChart();
         })
-        .withFailureHandler(function(e) {
-          document.getElementById('content').innerHTML = '<div class="empty">Ошибка: ' + (e.message || '') + '</div>';
-        })
-        .getDashboardData();
+        .catch(function(e) {
+          document.getElementById('content').innerHTML = '<div class="empty">Ошибка: ' + e.message + '</div>';
+        });
       
       function loadEffChart() {
         var canvas = document.getElementById('effChart');
         if (!canvas) { setTimeout(loadEffChart, 300); return; }
         
-        google.script.run.withSuccessHandler(function(eff) {
-          if (!eff || !eff.people || !eff.people.length) return;
-          drawEffChart(eff);
-        }).getWeekEfficiency();
+        api('getWeekEfficiency')
+          .then(function(eff) {
+            if (!eff || !eff.people || !eff.people.length) return;
+            drawEffChart(eff);
+          });
       }
       
       function drawEffChart(eff) {
